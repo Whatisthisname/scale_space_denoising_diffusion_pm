@@ -58,7 +58,7 @@ def parse_args():
     parser.add_argument('--model_ema_decay',type = float,help = 'ema model decay',default=0.995)
     parser.add_argument('--log_freq',type = int,help = 'training log message printing frequence',default=1)
     parser.add_argument('--no_clip',action='store_true',help = 'set to normal sampling method without clip x_0 which could yield unstable samples')
-    parser.add_argument('--cpu',action='store_true',help = 'cpu training', default=True)
+    parser.add_argument('--cpu',action='store_true',help = 'cpu training', default=False)
 
     args = parser.parse_args()
 

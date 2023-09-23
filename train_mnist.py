@@ -12,7 +12,7 @@ import os
 import math
 import argparse
 
-def create_mnist_dataloaders(batch_size,image_size=28,num_workers=4):
+def create_mnist_dataloaders(batch_size,image_size=28,num_workers=2):
     
     preprocess=transforms.Compose([transforms.Resize(image_size),\
                                     transforms.ToTensor(),\
@@ -92,7 +92,13 @@ def main(args):
         ckpt=torch.load(args.ckpt)
         model.load_state_dict(ckpt[args.run_name + "_model"])
 
+    else:
+        # delete existing train_results/{run_name} folder
+        if os.path.exists(f"results/{args.run_name}"):
+            os.system(f"rm -rf results/{args.run_name}")
+
     # train small MNIST model
+
 
     global_steps=0
     for i in range(args.epochs):

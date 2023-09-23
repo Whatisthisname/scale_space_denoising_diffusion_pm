@@ -115,9 +115,10 @@ def main(args):
         os.makedirs(f"results/{args.run_name}",exist_ok=True)
         torch.save(ckpt,f"results/{args.run_name}/steps_{global_steps}.pt")
 
-        with torch.no_grad():
-            samples = model.sampling(args.n_samples,clipped_reverse_diffusion=not args.no_clip,device=device)
-            save_image(samples,f"results/{args.run_name}/steps_{global_steps}.png",nrow=int(math.sqrt(args.n_samples)))
+        if args.n_samples>0:
+            with torch.no_grad():
+                samples = model.sampling(args.n_samples,clipped_reverse_diffusion=not args.no_clip,device=device)
+                save_image(samples,f"results/{args.run_name}/steps_{global_steps}.png",nrow=int(math.sqrt(args.n_samples)))
 
 if __name__=="__main__":
     args=parse_args()

@@ -112,8 +112,8 @@ def main(args):
                                                                     loss.detach().cpu().item(),scheduler.get_last_lr()[0]))
         ckpt={args.run_name + "_model":model.state_dict()}
 
-        os.makedirs("results",exist_ok=True)
-        torch.save(ckpt,f"results/{args.run_name}steps_{global_steps}.pt")
+        os.makedirs(f"results/{args.run_name}",exist_ok=True)
+        torch.save(ckpt,f"results/{args.run_name}/steps_{global_steps}.pt")
 
         with torch.no_grad():
             samples = model.sampling(args.n_samples,clipped_reverse_diffusion=not args.no_clip,device=device)

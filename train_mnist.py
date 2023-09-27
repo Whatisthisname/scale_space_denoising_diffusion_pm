@@ -36,7 +36,7 @@ def create_mnist_dataloaders(batch_size,image_size=28,num_workers=2):
                         transform=preprocess
                         )
     
-    test_dataset.data=test_dataset.data[(test_dataset.targets==5)|(test_dataset.targets==2)]
+    # test_dataset.data=test_dataset.data[(test_dataset.targets==1)|(test_dataset.targets==0)]
 
     print(test_dataset.data.shape)
 
@@ -71,6 +71,8 @@ def parse_args():
 def main(args):
     device="cpu" if args.cpu else "cuda"
     train_dataloader,test_dataloader=create_mnist_dataloaders(batch_size=args.batch_size,image_size=args.img_size)
+    
+    
     model=MNISTDiffusion(timesteps=args.timesteps,
                 image_size=args.img_size,
                 in_channels=1,
@@ -84,12 +86,20 @@ def main(args):
     alpha = min(1.0, alpha * adjust)
     
     optimizer=AdamW(model.parameters(),lr=args.lr)
-    scheduler=OneCycleLR(optimizer,args.lr,total_steps=args.epochs*len(train_dataloader),pct_start=0.25,anneal_strategy='cos')
+    # scheduler=OneCycleLR(optimizer,args.lr,total_steps=args.epochs*len(train_dataloader),pct_start=0.25,anneal_strategy='cos')
     loss_fn=nn.MSELoss(reduction='mean')
+
+    global_steps=0
+
 
     #load checkpoint
     if args.ckpt:
-        ckpt=torch.load(args.ckpt)
+        # load the latest checkpoint, the one with the biggest steps
+        ckpt_list=sorted(os.listdir(f"results/{args.run_name}"),key=lambda x:int(x.split("_")[1].split(".")[0]))
+        ckpt=torch.load(f"results/{args.run_name}/{ckpt_list[-1]}")
+
+        global_steps=int(ckpt_list[-1].split("_")[1].split(".")[0])
+
         model.load_state_dict(ckpt[args.run_name + "_model"])
 
     else:
@@ -97,10 +107,9 @@ def main(args):
         if os.path.exists(f"results/{args.run_name}"):
             os.system(f"rm -rf results/{args.run_name}")
 
+
     # train small MNIST model
 
-
-    global_steps=0
     for i in range(args.epochs):
         model.train()
         for j,(image,target) in enumerate(train_dataloader):
@@ -111,11 +120,11 @@ def main(args):
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            scheduler.step()
+            # scheduler.step()
             global_steps+=1
             if j%args.log_freq==0:
                 print("Epoch[{}/{}],Step[{}/{}],loss:{:.5f},lr:{:.5f}".format(i+1,args.epochs,j,len(train_dataloader),
-                                                                    loss.detach().cpu().item(),scheduler.get_last_lr()[0]))
+                                                                    loss.detach().cpu().item())) #,scheduler.get_last_lr()[0]))
         ckpt={args.run_name + "_model":model.state_dict()}
 
         os.makedirs(f"results/{args.run_name}",exist_ok=True)

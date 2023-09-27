@@ -47,6 +47,7 @@ class MNISTDiffusion(nn.Module):
         x_t=(x_t+1.)/2. #[-1,1] to [0,1]
 
         return x_t
+
     
     def _cosine_variance_schedule(self,timesteps,epsilon= 0.008):
         steps=torch.linspace(0,timesteps,steps=timesteps+1,dtype=torch.float32)

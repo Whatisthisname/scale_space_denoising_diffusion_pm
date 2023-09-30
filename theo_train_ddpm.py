@@ -138,7 +138,9 @@ def main(args):
 
             # after each epoch, sample one batch of images
             with torch.no_grad():
-                images = small_model.sample(3, return_whole_process=True)
+                print("sampling")
+                # images = small_model.sample(args.n_samples, return_whole_process=False)
+                images = small_model.sample(8, return_whole_process=True)
                 # images = small_model.forward_diffusion(next(iter(loader))[0][:10], keep_intermediate=False, target = int(0.5 * (args.timesteps - 1)))
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image

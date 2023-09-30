@@ -24,7 +24,7 @@ class DDPM(nn.Module):
     def train(self, clean_image: torch.Tensor):
         """Train the model on a batch of clean images, letting the model predict the noise and returning the MSE. Minimize the output directly."""
         noise = torch.randn_like(clean_image)
-        t = torch.randint(0, self.timesteps, (clean_image.shape[0],)).to(
+        t = torch.randint(0, self.timesteps-1, (clean_image.shape[0],)).to(
             clean_image.device
         )
 
@@ -37,28 +37,39 @@ class DDPM(nn.Module):
 
         noisy = image_scale * clean_image + noise_scale * noise
 
-        pred_noise = self.model(noisy, t.unsqueeze(1).float())
+        pred_noise = self.model(noisy, t.unsqueeze(1).float() / (self.timesteps-1))
 
         return torch.mean((pred_noise - noise) ** 2)
 
-    def forward_diffusion(self, clean_images: torch.Tensor, target : torch.Tensor, keep_intermediate: bool) -> torch.Tensor:
-
+    def forward_diffusion(
+        self, clean_images: torch.Tensor, target: torch.Tensor, keep_intermediate: bool
+    ) -> torch.Tensor:
+        
+        
         if keep_intermediate:
             images = [clean_images]
 
             for t in range(self.timesteps):
                 image_scale = self.sqrt_alphas_cumprod[t]
                 noise_scale = self.sqrt_one_minus_alphas_cumprod[t]
-                noised = image_scale * clean_images + noise_scale * torch.randn_like(clean_images)
+                noised = image_scale * clean_images + noise_scale * torch.randn_like(
+                    clean_images
+                )
                 images.append(noised)
 
             # concatenate each step into one image for for each sample
             return torch.cat(images, dim=2)
-        
+
         else:
-            image_scale = self.sqrt_alphas_cumprod.gather(0, target).reshape(clean_images.shape[0], 1, 1, 1)
-            noise_scale = self.sqrt_one_minus_alphas_cumprod.gather(0, target).reshape(clean_images.shape[0], 1, 1, 1)
-            return image_scale * clean_images + noise_scale * torch.randn_like(clean_images)
+            image_scale = self.sqrt_alphas_cumprod.gather(0, target).reshape(
+                clean_images.shape[0], 1, 1, 1
+            )
+            noise_scale = self.sqrt_one_minus_alphas_cumprod.gather(0, target).reshape(
+                clean_images.shape[0], 1, 1, 1
+            )
+            return image_scale * clean_images + noise_scale * torch.randn_like(
+                clean_images
+            )
 
     @torch.no_grad()
     def sample(self, amount: int, return_whole_process: bool) -> torch.Tensor:
@@ -70,11 +81,14 @@ class DDPM(nn.Module):
             .float()
         )
 
-        images = []
+        # print("image:", image[0, 0, :, 8])
 
-        for t in range(self.timesteps - 1, 0, -1):
+        images = []
+        images.append(image)
+
+        for t in reversed(range(0, self.timesteps-1)):
             step = t * torch.ones(amount, dtype=int).to(self.device)
-            image : torch.Tensor = self.reverse_diffusion(image, step)
+            image: torch.Tensor = self.reverse_diffusion(image, step).clone()
             images.append(image)
 
         if return_whole_process:
@@ -93,7 +107,10 @@ class DDPM(nn.Module):
 
         pred_noise-> pred_mean and pred_std
         """
-        pred = self.model(x_t, t.unsqueeze(1).float())
+        # print("x_t:", x_t[0, 0, :, 8])
+        # print(t)
+        noise_pred = self.model.forward(x_t, t.unsqueeze(1).float() / (self.timesteps-1))
+        # print("pred:", pred[0, 0, :, 8])
 
         batch_size: int = x_t.shape[0]
         alpha_t = self.alphas.gather(-1, t).reshape(batch_size, 1, 1, 1)
@@ -102,8 +119,9 @@ class DDPM(nn.Module):
         sqrt_one_minus_alpha_cumprod_t = self.sqrt_one_minus_alphas_cumprod.gather(
             -1, t
         ).reshape(batch_size, 1, 1, 1)
+
         mean = (1.0 / torch.sqrt(alpha_t)) * (
-            x_t - ((1.0 - alpha_t) / sqrt_one_minus_alpha_cumprod_t) * pred
+            x_t - ((1.0 - alpha_t) / sqrt_one_minus_alpha_cumprod_t) * noise_pred
         )
 
         if t.min() > 0:
@@ -113,7 +131,9 @@ class DDPM(nn.Module):
             std = torch.sqrt(
                 beta_t * (1.0 - alpha_t_cumprod_prev) / (1.0 - alpha_t_cumprod)
             )
+
         else:
+            # print("std = 0")
             std = 0.0
 
         noise = torch.randn_like(x_t)
@@ -124,15 +144,16 @@ def _cosine_variance_schedule(timesteps, epsilon=0.003):
     steps = torch.linspace(0, timesteps, steps=timesteps + 1, dtype=torch.float32)
     f_t = (
         torch.cos(((steps / timesteps + epsilon) / (1.0 + epsilon)) * math.pi * 0.5)
-        ** 0.8
+        ** 1.3
     )
     betas = torch.clip(1.0 - f_t[1:] / f_t[:timesteps], 0.0, 0.999)
 
     return betas
 
+
 def _custom_schedule(timesteps) -> torch.Tensor:
-    cube = torch.linspace(0, end=1, steps=timesteps)**4
-    line = torch.linspace(0, end=1, steps=timesteps)*0.4
+    cube = torch.linspace(0, end=1, steps=timesteps) ** 4
+    line = torch.linspace(0, end=1, steps=timesteps) * 0.4
     sched = torch.maximum(cube, line)
     return sched
 

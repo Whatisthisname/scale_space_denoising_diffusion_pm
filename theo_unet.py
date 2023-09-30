@@ -36,9 +36,12 @@ class UNet(nn.Module):
     def forward(self, x : torch.Tensor, context : torch.Tensor = None) -> torch.Tensor:
         # define the forward pass using skip connections
         
+        # print("unet input:", x[0,0,0,0])
+
         # encoder
         intermediate_encodings = []
         for i in range(self.stages+1):
+            # print("unet x", i, x[0,0,0,0])
             # print("x shape: {}".format(x.shape))
             x = self.encoders[i](x, context)
             intermediate_encodings.append(x)
@@ -46,6 +49,8 @@ class UNet(nn.Module):
         intermediate_encodings.pop() # we don't need to concatenate the last layer as it goes directly to the decoder
 
         intermediate_encodings.reverse() 
+
+    
         
         # decoder
         for i in range(self.stages+1):
@@ -54,9 +59,11 @@ class UNet(nn.Module):
                 # concatenate the previous conv in the encoding stage to feed to the decoding (skip connection)
                 x = torch.cat((x, intermediate_encodings[i-1]), dim=1)
             x = self.decoders[i](x)
+            # print("unet x", i, x[0,0,0,0])
 
         x = self.final_conv(x)
 
+        # exit()
         return x
 
 class EncoderBlock(nn.Module):
@@ -83,16 +90,23 @@ class EncoderBlock(nn.Module):
         if self.downsample:
             x = self.pool(x)
         
+        # print("encoder x", x[0,0,0,0])
+
         if self.context_size > 0:
             x = self.FiLM(x, context)
+            # print("encoder FiLM x", x[0,0,0,0])
 
         x = self.conv1(x)
+        # print("encoder x", x[0,0,0,0])
         # print ("encoder conv1 shape: {}".format(x.shape))
         x = self.gelu(x)
         x = self.conv2(x)
+        # print("encoder x", x[0,0,0,0])
         # print ("encoder conv2 shape: {}".format(x.shape))
         x = self.gelu(x)
+        # print("b4 batchnorm", x[0,0,0,0])
         x = self.batchnorm(x)
+        # print("after batchnorm x", x[0,0,0,0])
         # print ("encoder pool shape: {}".format(x.shape))
         return x
 

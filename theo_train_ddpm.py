@@ -107,7 +107,7 @@ def main(args):
         
         with tqdm.tqdm(train_dataloader) as loader:
                 
-            
+            total_loss = 0
             
             for i, (images, labels) in enumerate(loader):
                 if i > args.early_stop:
@@ -120,12 +120,16 @@ def main(args):
                 loss.backward()
                 optimizer.step()
 
+                total_loss += loss.item()
+
                 loader.set_description('Epoch %i' % (epoch + 1))
                 # Description will be displayed on the left
             
                 # Postfix will be displayed on the right,
                 # formatted automatically based on argument's datatype
-                loader.set_postfix(loss=loss.item())
+                loader.set_postfix(epoch_avg_loss=total_loss / (i + 1))
+
+
 
 
             # after epoch, save model checkpoint:
@@ -140,8 +144,9 @@ def main(args):
             with torch.no_grad():
                 print("sampling")
                 # images = small_model.sample(args.n_samples, return_whole_process=False)
-                images = small_model.sample(8, return_whole_process=True)
-                # images = small_model.forward_diffusion(next(iter(loader))[0][:10], keep_intermediate=False, target = int(0.5 * (args.timesteps - 1)))
+                # images = small_model.sample(8, return_whole_process=True)
+                # images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=False, target = int(0.5 * (args.timesteps - 1)))
+                images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=True,target=None)
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image
 

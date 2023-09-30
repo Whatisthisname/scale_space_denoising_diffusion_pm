@@ -2,7 +2,6 @@ import torch
 import torch.functional as F
 import torch.nn as nn
 import torch.optim as optim
-import einops
 import torch.utils.data as data
 
 # define our U-net model

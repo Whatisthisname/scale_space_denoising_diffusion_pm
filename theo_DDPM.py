@@ -144,7 +144,7 @@ def _cosine_variance_schedule(timesteps, epsilon=0.003):
     steps = torch.linspace(0, timesteps, steps=timesteps + 1, dtype=torch.float32)
     f_t = (
         torch.cos(((steps / timesteps + epsilon) / (1.0 + epsilon)) * math.pi * 0.5)
-        ** 1.3
+        ** 2.0
     )
     betas = torch.clip(1.0 - f_t[1:] / f_t[:timesteps], 0.0, 0.999)
 

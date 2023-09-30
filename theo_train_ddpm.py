@@ -86,11 +86,12 @@ def main(args):
         checkpoints = glob.glob("checkpoints/{}/*.pth".format(args.run_name))
         if len(checkpoints) == 0:
             print("No checkpoints found, starting from scratch")
-        checkpoints.sort(key=lambda x: int(re.findall(r"\d+", x)[-1]))
-        latest_checkpoint = checkpoints[-1]
-        small_loaded_epoch = int(re.findall(r"\d+", latest_checkpoint)[-1])
-        print("Loading checkpoint: {}".format(latest_checkpoint))
-        small_model.load_state_dict(torch.load(latest_checkpoint))
+        else:
+            checkpoints.sort(key=lambda x: int(re.findall(r"\d+", x)[-1]))
+            latest_checkpoint = checkpoints[-1]
+            small_loaded_epoch = int(re.findall(r"\d+", latest_checkpoint)[-1])
+            print("Loading checkpoint: {}".format(latest_checkpoint))
+            small_model.load_state_dict(torch.load(latest_checkpoint))
 
     else:
         print("No checkpoint loaded, starting from scratch")

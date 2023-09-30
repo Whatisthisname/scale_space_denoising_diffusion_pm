@@ -25,24 +25,16 @@ def parse_args():
         default=36,
     )
     parser.add_argument(
-        "--unet_levels",
+        "--stages",
         type=int,
         help="Amount of up/downsample stages in UNET.",
         default=3,
-    )
-    parser.add_argument(
-        "--timesteps", type=int, help="sampling steps of DDPM", default=1000
     )
     parser.add_argument(
         "--log_freq",
         type=int,
         help="training log message printing frequence",
         default=1,
-    )
-    parser.add_argument(
-        "--no_clip",
-        action="store_true",
-        help="set to normal sampling method without clip x_0 which could yield unstable samples",
     )
     parser.add_argument(
         "--cpu", action="store_true", help="cpu training", default=False
@@ -68,7 +60,7 @@ def main(args):
     print("image size: {}".format(args.img_size))
     
     model = UNet(
-        stages=args.unet_levels, context_size=1
+        stages=args.stages, ctx_sz=1
     )
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
@@ -96,6 +88,13 @@ def main(args):
         print("Loading checkpoint: {}".format(latest_checkpoint))
         model.load_state_dict(torch.load(latest_checkpoint))
 
+
+        # # explore the loaded checkpoint's weights. Check if the context embedding is used at all.
+        # [print(model.encoders[i].FiLM.context_embedding1.weight.data.shape) for i in range(args.stages)]
+        # [print(model.encoders[i].FiLM.context_embedding2.weight.data.shape) for i in range(args.stages)]
+        # exit()
+
+
     else:
         print("No checkpoint loaded, starting from scratch")
         # remove existing run name directory with checkpoints and images
@@ -112,10 +111,12 @@ def main(args):
             if i > args.early_stop:
                 break
 
+            labels = labels.to(device).unsqueeze_(1).float()
+
             images = images.to(device)
 
             optimizer.zero_grad()
-            prediction = model(images)
+            prediction = model(images, labels)
             loss = criterion(prediction, -images)
             loss.backward()
             optimizer.step()
@@ -131,13 +132,12 @@ def main(args):
             "checkpoints/{}/small_model_{}.pth".format(args.run_name, epoch),
         )
 
-        
-
         # after each epoch, sample one batch of images
         with torch.no_grad():
             (images, labels) = next(iter(test_dataloader))
+            labels = labels.to(device).unsqueeze_(1).float()
             images = images.to(device)
-            prediction = model(images)
+            prediction = model(images, labels)
             # save the images to the run_name path
             # stack the images and the predictions together and save them in one image
 

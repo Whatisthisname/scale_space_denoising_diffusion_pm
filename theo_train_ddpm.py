@@ -26,13 +26,10 @@ def parse_args():
         default=36,
     )
     parser.add_argument(
-        "--unet_levels",
+        "--stages",
         type=int,
         help="Amount of up/downsample stages in UNET.",
         default=3,
-    )
-    parser.add_argument(
-        "--timesteps", type=int, help="sampling steps of DDPM", default=1000
     )
     parser.add_argument(
         "--log_freq",
@@ -44,9 +41,6 @@ def parse_args():
         "--no_clip",
         action="store_true",
         help="set to normal sampling method without clip x_0 which could yield unstable samples",
-    )
-    parser.add_argument(
-        "--cpu", action="store_true", help="cpu training", default=False
     )
     parser.add_argument("--run_name", type=str, help="define run name", required=True)
     parser.add_argument("--img_size", type=int, help="size of image", default="28")
@@ -71,7 +65,7 @@ def main(args):
     print("image size: {}".format(args.img_size))
     
     small_model = DDPM(
-        args.img_size, 10, args.timesteps, 1)  
+        args.img_size, 1, args.timesteps, args.stages)  
 
     optimizer = torch.optim.AdamW(small_model.parameters(), lr=args.lr)
 
@@ -80,7 +74,7 @@ def main(args):
     train_dataloader, test_dataloader = create_mnist_dataloaders(
         batch_size=args.batch_size, image_size=args.img_size
     )
-    device = "cpu" if args.cpu else "cuda"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     small_model.to(device)
 
 
@@ -117,8 +111,7 @@ def main(args):
             images = images.to(device)
 
             optimizer.zero_grad()
-            prediction = small_model(images)
-            loss = criterion(prediction, -images)
+            loss = small_model.train(images)
             loss.backward()
             optimizer.step()
 
@@ -137,14 +130,14 @@ def main(args):
 
         # after each epoch, sample one batch of images
         with torch.no_grad():
-            (images, labels) = next(iter(test_dataloader))
-            images = images.to(device)
-            prediction = small_model(images)
+            images = small_model.sample(3, whole_process=True)
             # save the images to the run_name path
             # stack the images and the predictions together and save them in one image
 
+            print(images.dtype)
+
             torchvision.utils.save_image(
-                torch.cat((images, prediction), dim=0),
+                images,
                 "images/{}/small_model_{}.png".format(args.run_name, epoch),
                 nrow=8,
             )

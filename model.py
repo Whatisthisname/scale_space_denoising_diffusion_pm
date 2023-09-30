@@ -34,9 +34,12 @@ class MNISTDiffusion(nn.Module):
 
     @torch.no_grad()
     def sampling(self,n_samples,clipped_reverse_diffusion=True,device="cuda"):
+        
         x_t=torch.randn((n_samples,self.in_channels,self.image_size,self.image_size)).to(device)
+        
         for i in tqdm(range(self.timesteps-1,-1,-1),desc="Sampling"):
             noise=torch.randn_like(x_t).to(device)
+            
             t=torch.tensor([i for _ in range(n_samples)]).to(device)
 
             if clipped_reverse_diffusion:

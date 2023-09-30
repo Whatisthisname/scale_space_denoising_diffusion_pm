@@ -35,7 +35,7 @@ def parse_args():
         "--log_freq",
         type=int,
         help="training log message printing frequence",
-        default=1,
+        default=5,
     )
     parser.add_argument(
         "--no_clip",
@@ -104,43 +104,50 @@ def main(args):
     os.makedirs("checkpoints/{}".format(args.run_name), exist_ok=True)
 
     for epoch in range(small_loaded_epoch, small_loaded_epoch + args.small_epochs):
-        for i, (images, labels) in enumerate(tqdm.tqdm(train_dataloader)):
-            if i > args.early_stop:
-                break
-
-            images = images.to(device)
-
-            optimizer.zero_grad()
-            loss = small_model.train(images)
-            loss.backward()
-            optimizer.step()
-
-            if i % args.log_freq == 0:
-                print(
-                    "Epoch: {}, Iteration: {}, Loss: {}".format(epoch, i, loss.item())
-                )
-
-        # after epoch, save model checkpoint:
-        torch.save(
-            small_model.state_dict(),
-            "checkpoints/{}/small_model_{}.pth".format(args.run_name, epoch),
-        )
-
         
+        with tqdm.tqdm(train_dataloader) as loader:
+                
+            
+            
+            for i, (images, labels) in enumerate(loader):
+                if i > args.early_stop:
+                    break
 
-        # after each epoch, sample one batch of images
-        with torch.no_grad():
-            images = small_model.sample(3, whole_process=True)
-            # save the images to the run_name path
-            # stack the images and the predictions together and save them in one image
+                images = images.to(device)
 
-            print(images.dtype)
+                optimizer.zero_grad()
+                loss = small_model.train(images)
+                loss.backward()
+                optimizer.step()
 
-            torchvision.utils.save_image(
-                images,
-                "images/{}/small_model_{}.png".format(args.run_name, epoch),
-                nrow=8,
+                loader.set_description('Epoch %i' % (epoch + 1))
+                # Description will be displayed on the left
+            
+                # Postfix will be displayed on the right,
+                # formatted automatically based on argument's datatype
+                loader.set_postfix(loss=loss.item())
+
+
+            # after epoch, save model checkpoint:
+            torch.save(
+                small_model.state_dict(),
+                "checkpoints/{}/small_model_{}.pth".format(args.run_name, epoch),
             )
+
+
+
+            # after each epoch, sample one batch of images
+            with torch.no_grad():
+                images = small_model.sample(3, return_whole_process=True)
+                # images = small_model.forward_diffusion(next(iter(loader))[0][:10], keep_intermediate=False, target = int(0.5 * (args.timesteps - 1)))
+                # save the images to the run_name path
+                # stack the images and the predictions together and save them in one image
+
+                torchvision.utils.save_image(
+                    images,
+                    "images/{}/small_model_{}.png".format(args.run_name, epoch),
+                    nrow=8,
+                )
 
 
 if __name__ == "__main__":

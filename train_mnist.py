@@ -16,19 +16,13 @@ def create_mnist_dataloaders(batch_size,image_size=28,num_workers=2):
     
     preprocess=transforms.Compose([transforms.Resize(image_size),\
                                     transforms.ToTensor(),\
-                                    transforms.Normalize([0.5],[0.5])]) #[0,1] to [-1,1]
-
-    # train data should contain only fives and twos
+                                    transforms.Normalize([0],[1])])
 
     train_dataset=MNIST(root="./mnist_data",\
                         train=True,\
                         download=True,\
                         transform=preprocess
                         )
-
-    train_dataset.data=train_dataset.data[(train_dataset.targets==5)|(train_dataset.targets==2)]
-    
-
 
     test_dataset=MNIST(root="./mnist_data",\
                         train=False,\

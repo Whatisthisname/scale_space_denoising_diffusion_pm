@@ -41,31 +41,53 @@ class DDPM(nn.Module):
 
         return torch.mean((pred_noise - noise) ** 2)
 
+    def forward_diffusion(self, clean_images: torch.Tensor, target : torch.Tensor, keep_intermediate: bool) -> torch.Tensor:
+
+        if keep_intermediate:
+            images = [clean_images]
+
+            for t in range(self.timesteps):
+                image_scale = self.sqrt_alphas_cumprod[t]
+                noise_scale = self.sqrt_one_minus_alphas_cumprod[t]
+                noised = image_scale * clean_images + noise_scale * torch.randn_like(clean_images)
+                images.append(noised)
+
+            # concatenate each step into one image for for each sample
+            return torch.cat(images, dim=2)
+        
+        else:
+            image_scale = self.sqrt_alphas_cumprod.gather(0, target).reshape(clean_images.shape[0], 1, 1, 1)
+            noise_scale = self.sqrt_one_minus_alphas_cumprod.gather(0, target).reshape(clean_images.shape[0], 1, 1, 1)
+            return image_scale * clean_images + noise_scale * torch.randn_like(clean_images)
+
     @torch.no_grad()
-    def sample(self, amount : int, whole_process : bool) -> torch.Tensor:
+    def sample(self, amount: int, return_whole_process: bool) -> torch.Tensor:
         """Sample from the model."""
         # sample noise from standard normal distribution
-        image = torch.randn((amount, 1, self.image_size, self.image_size)).to(self.device).float()
+        image = (
+            torch.randn((amount, 1, self.image_size, self.image_size))
+            .to(self.device)
+            .float()
+        )
 
         images = []
 
-        for t in range(self.timesteps-1, 0, -1):
+        for t in range(self.timesteps - 1, 0, -1):
             step = t * torch.ones(amount, dtype=int).to(self.device)
-            images.append(image)
             image : torch.Tensor = self.reverse_diffusion(image, step)
+            images.append(image)
 
-        if whole_process:
+        if return_whole_process:
             # images holds the images from the noisiest to the denoised image
             # concatenate each step into one image for for each sample
-            images = torch.cat(images[::10], dim=2)
+            images = torch.cat(images, dim=2)
             return images
 
-        else: 
+        else:
             return image
-    
 
     @torch.no_grad()
-    def reverse_diffusion(self, x_t: torch.Tensor, t : torch.Tensor) -> torch.Tensor:
+    def reverse_diffusion(self, x_t: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
         p(x_{t-1}|x_{t})-> mean,std
 
@@ -98,12 +120,31 @@ class DDPM(nn.Module):
         return mean + std * noise
 
 
-def _cosine_variance_schedule(timesteps, epsilon=0.008):
+def _cosine_variance_schedule(timesteps, epsilon=0.003):
     steps = torch.linspace(0, timesteps, steps=timesteps + 1, dtype=torch.float32)
     f_t = (
         torch.cos(((steps / timesteps + epsilon) / (1.0 + epsilon)) * math.pi * 0.5)
-        ** 2
+        ** 0.8
     )
     betas = torch.clip(1.0 - f_t[1:] / f_t[:timesteps], 0.0, 0.999)
 
     return betas
+
+def _custom_schedule(timesteps) -> torch.Tensor:
+    cube = torch.linspace(0, end=1, steps=timesteps)**4
+    line = torch.linspace(0, end=1, steps=timesteps)*0.4
+    sched = torch.maximum(cube, line)
+    return sched
+
+
+# plot the cosine variance schedule if running this file by itself
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    n = 100
+    x_axis = range(n)
+
+    plt.scatter(x_axis, _cosine_variance_schedule(n), label="cos")
+    plt.scatter(x_axis, _custom_schedule(n), label="custom")
+    plt.legend()
+    plt.show()

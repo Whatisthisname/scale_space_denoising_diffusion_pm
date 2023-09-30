@@ -91,7 +91,7 @@ def main(args):
             latest_checkpoint = checkpoints[-1]
             small_loaded_epoch = int(re.findall(r"\d+", latest_checkpoint)[-1])
             print("Loading checkpoint: {}".format(latest_checkpoint))
-            small_model.load_state_dict(torch.load(latest_checkpoint))
+            small_model.load_state_dict(torch.load(latest_checkpoint, map_location=device))
 
     else:
         print("No checkpoint loaded, starting from scratch")
@@ -144,10 +144,10 @@ def main(args):
             # after each epoch, sample one batch of images
             with torch.no_grad():
                 print("sampling")
-                # images = small_model.sample(args.n_samples, return_whole_process=False)
+                images = small_model.sample(args.n_samples, return_whole_process=False)
                 # images = small_model.sample(8, return_whole_process=True)
                 # images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=False, target = int(0.5 * (args.timesteps - 1)))
-                images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=True,target=None)
+                # images = small_model.forward_diffusion(next(iter(loader))[0][:8].to(device), keep_intermediate=True,target=None)
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image
 

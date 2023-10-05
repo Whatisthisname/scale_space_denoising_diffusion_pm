@@ -1,19 +1,23 @@
 import math
+import os
 from theo_unet import UNet
 
 import torch
+import torchvision
 import torch.nn as nn
+
+from train_mnist import create_mnist_dataloaders
 
 
 class DDPM(nn.Module):
-    def __init__(self, image_size, ctx_sz=1, timesteps=1000, unet_stages=3):
+    def __init__(self, image_size, ctx_sz=1, timesteps=1000, unet_stages=3, schedule_param=10.0):
         super().__init__()
         self.timesteps = timesteps
         self.image_size = image_size
         self.model = UNet(unet_stages, ctx_sz)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.register_buffer("betas", _cosine_variance_schedule(timesteps))
+        self.register_buffer("betas", _cosine_variance_schedule(timesteps, power=schedule_param))
         self.register_buffer("alphas", 1.0 - self.betas)
         self.register_buffer("alphas_cumprod", self.alphas.cumprod(dim=-1))
         self.register_buffer("sqrt_alphas_cumprod", self.alphas_cumprod.sqrt())
@@ -140,32 +144,48 @@ class DDPM(nn.Module):
         return mean + std * noise
 
 
-def _cosine_variance_schedule(timesteps, epsilon=0.003):
+def _cosine_variance_schedule(timesteps, epsilon=0.003, power=10.0):
     steps = torch.linspace(0, timesteps, steps=timesteps + 1, dtype=torch.float32)
     f_t = (
         torch.cos(((steps / timesteps + epsilon) / (1.0 + epsilon)) * math.pi * 0.5)
-        ** 2.0
+        ** power
     )
     betas = torch.clip(1.0 - f_t[1:] / f_t[:timesteps], 0.0, 0.999)
 
     return betas
 
 
-def _custom_schedule(timesteps) -> torch.Tensor:
-    cube = torch.linspace(0, end=1, steps=timesteps) ** 4
-    line = torch.linspace(0, end=1, steps=timesteps) * 0.4
-    sched = torch.maximum(cube, line)
-    return sched
-
 
 # plot the cosine variance schedule if running this file by itself
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
+    power = 1.5
+    img_size = 32
+    model = DDPM(img_size, timesteps=30, schedule_param = power)
+
+
+
+    train_dataloader, test_dataloader = create_mnist_dataloaders(
+        batch_size=8, image_size=img_size
+    )
+
+    images = model.forward_diffusion(next(iter(train_dataloader))[0][:8], keep_intermediate=True,target=None)
+
+    # save the images locally
+    # create the images folder if it doesn't exist
+
+    os.makedirs("images/schedules", exist_ok=True)
+
+    torchvision.utils.save_image(
+        images,
+        "images/schedules/s.png".format("test", 0),
+        nrow=8,
+    )
+    
     n = 100
     x_axis = range(n)
-
-    plt.scatter(x_axis, _cosine_variance_schedule(n), label="cos")
-    plt.scatter(x_axis, _custom_schedule(n), label="custom")
+    for power in [1, 2, 5, 10, 20, 50, 100]:
+        plt.plot(x_axis, _cosine_variance_schedule(n, power = power), label=power)
     plt.legend()
     plt.show()

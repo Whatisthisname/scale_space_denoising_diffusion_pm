@@ -57,7 +57,14 @@ class UNet(nn.Module):
             if i > 0:
                 # concatenate the previous conv in the encoding stage to feed to the decoding (skip connection)
                 x = torch.cat((x, intermediate_encodings[i-1]), dim=1)
-            x = self.decoders[i](x)
+            
+            # determine upsample target size by inspecting shape of corresponding encoding layer
+            if i < self.stages:
+                upsample_target = intermediate_encodings[i].shape[-1]
+            else:
+                upsample_target = None # last layer won't be upsampled
+
+            x = self.decoders[i](x, upsample_target)
             # print("unet x", i, x[0,0,0,0])
 
         x = self.final_conv(x)
@@ -115,21 +122,21 @@ class DecoderBlock(nn.Module):
         super(DecoderBlock, self).__init__()
         in_ch = int(in_ch)
         out_ch = int(out_ch)
-        self.upsample = up_smpl
         
         # log input params:
         # print ("DecoderBlock: in_channels: {}, out_channels: {}".format(in_channels, out_channels), end = " ")
         # print ("upsample at end: {}".format(upsample))
 
         # define the layers of the decoder block
-        if up_smpl:
-            self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        
+        self.do_upsample = up_smpl
+        
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
         self.gelu = nn.GELU()
         self.batchnorm = nn.BatchNorm2d(out_ch)
 
-    def forward(self, x : torch.Tensor) -> torch.Tensor:
+    def forward(self, x : torch.Tensor, upsample_target : int) -> torch.Tensor:
         # print ("decoder befupsampled shape: {}".format(x.shape))
         # print ("decoder upsampled shape: {}".format(x.shape))
         x = self.conv1(x)
@@ -139,8 +146,8 @@ class DecoderBlock(nn.Module):
         # print ("decoder conv2 shape: {}".format(x.shape))
         x = self.gelu(x)
         x = self.batchnorm(x)
-        if self.upsample:
-            x = self.upsample(x)
+        if self.do_upsample:
+            x = nn.functional.interpolate(input = x, size = (upsample_target, upsample_target), mode='bilinear', align_corners=True)
         return x
 
 class FiLM(nn.Module):

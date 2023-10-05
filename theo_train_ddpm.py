@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision
 import argparse
+import torch_ema as ema
 
 from theo_DDPM import DDPM
 from train_mnist import create_mnist_dataloaders
@@ -45,6 +46,7 @@ def parse_args():
     parser.add_argument("--run_name", type=str, help="define run name", required=True)
     parser.add_argument("--img_size", type=int, help="size of image", default="28")
     parser.add_argument("--early_stop", type=int, help="early stop", default=10)
+    parser.add_argument("--ema_update_freq", type=int, help="ema update freq", default=10)
     
     # add flag to toggle loading latest checkpoint automatically
     parser.add_argument("--ckpt", action="store_true", help="load latest checkpoint")
@@ -65,7 +67,8 @@ def main(args):
     print("image size: {}".format(args.img_size))
     
     small_model = DDPM(
-        args.img_size, 1, args.timesteps, args.stages)  
+        args.img_size, 1, args.timesteps, args.stages, schedule_param=1.5)
+    ema_model = ema.ExponentialMovingAverage(small_model.parameters(), decay=0.95)
 
     optimizer = torch.optim.AdamW(small_model.parameters(), lr=args.lr)
 
@@ -78,6 +81,21 @@ def main(args):
     small_model.to(device)
 
 
+    def from_scratch():
+        # remove existing run name directory with checkpoints and images
+        import shutil
+        shutil.rmtree("images/{}".format(args.run_name), ignore_errors=True)
+        shutil.rmtree("checkpoints/{}".format(args.run_name), ignore_errors=True)
+
+        # save arguments to run_name folder, create it if it doesn't exist
+        os.makedirs("checkpoints/{}".format(args.run_name), exist_ok=True)
+        with open("checkpoints/{}/args.txt".format(args.run_name), "w") as f:
+            # for each argument, write it to the file, so it can be directly copied to the terminal
+            for arg in vars(args):
+
+                f.write("--{} {}\n".format(arg, getattr(args, arg)))
+
+
     small_loaded_epoch = 0
     if args.ckpt:
         # load latest checkpoint from checkpoint folder
@@ -86,6 +104,7 @@ def main(args):
         checkpoints = glob.glob("checkpoints/{}/*.pth".format(args.run_name))
         if len(checkpoints) == 0:
             print("No checkpoints found, starting from scratch")
+            from_scratch()
         else:
             checkpoints.sort(key=lambda x: int(re.findall(r"\d+", x)[-1]))
             latest_checkpoint = checkpoints[-1]
@@ -95,10 +114,8 @@ def main(args):
 
     else:
         print("No checkpoint loaded, starting from scratch")
-        # remove existing run name directory with checkpoints and images
-        import shutil
-        shutil.rmtree("images/{}".format(args.run_name), ignore_errors=True)
-        shutil.rmtree("checkpoints/{}".format(args.run_name), ignore_errors=True)
+        from_scratch()
+        
 
     # create run folder:
     os.makedirs("images/{}".format(args.run_name), exist_ok=True)
@@ -123,12 +140,15 @@ def main(args):
 
                 total_loss += loss.item()
 
-                loader.set_description('Epoch %i' % (epoch + 1))
+                loader.set_description('E%i' % (epoch + 1))
                 # Description will be displayed on the left
             
                 # Postfix will be displayed on the right,
                 # formatted automatically based on argument's datatype
-                loader.set_postfix(epoch_avg_loss=total_loss / (i + 1))
+                loader.set_postfix(avg_loss=total_loss / (i + 1))
+
+                if i % args.ema_update_freq == 0:
+                    ema_model.update()
 
 
 
@@ -142,11 +162,13 @@ def main(args):
 
 
             # after each epoch, sample one batch of images
-            with torch.no_grad():
+            with ema_model.average_parameters():
                 print("sampling")
-                images = small_model.sample(args.n_samples, return_whole_process=False)
-                # images = small_model.sample(8, return_whole_process=True)
-                # images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=False, target = int(0.5 * (args.timesteps - 1)))
+                # images = small_model.sample(args.n_samples, return_whole_process=False)
+                images = small_model.sample(8, return_whole_process=True)
+                # timestep_target = (int(0.5 * (args.timesteps - 1)))
+                # timestep_target = torch.ones(8, dtype=torch.long) * timestep_target
+                # images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=False, target = timestep_target)
                 # images = small_model.forward_diffusion(next(iter(loader))[0][:8].to(device), keep_intermediate=True,target=None)
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image

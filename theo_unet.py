@@ -161,6 +161,7 @@ class FiLM(nn.Module):
         # make a network that maps from context to the affine transformation parameters
         
         self.context_embedding1 = nn.Linear(ctx_size, in_ch)
+        self.gelu = nn.GELU()
         self.context_embedding2 = nn.Linear(in_ch, in_ch*2)
         
         # # set the embedding to be the identity by default
@@ -174,7 +175,7 @@ class FiLM(nn.Module):
         # print ("x shape: {}".format(x.shape))
 
         params = self.context_embedding1(ctx)
-        params = nn.GELU()(params)
+        params = self.gelu(params)
         params = self.context_embedding2(params)
 
         # apply the affine transformation to the input tensor

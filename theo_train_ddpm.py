@@ -67,7 +67,7 @@ def main(args):
     print("image size: {}".format(args.img_size))
     
     small_model = DDPM(
-        args.img_size, 1, args.timesteps, args.stages, schedule_param=1.5)
+        args.img_size, ctx_sz=1+10, timesteps=args.timesteps, unet_stages=args.stages, noise_schedule_param=1.5)
     ema_model = ema.ExponentialMovingAverage(small_model.parameters(), decay=0.95)
 
     optimizer = torch.optim.AdamW(small_model.parameters(), lr=args.lr)
@@ -132,13 +132,16 @@ def main(args):
                     break
 
                 images = images.to(device)
+                labels = labels.to(device)
+                # one-hot encode the digits
+                labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
 
                 optimizer.zero_grad()
-                loss = small_model.train(images)
+                loss = small_model.train(images, labels)
                 loss.backward()
                 optimizer.step()
 
-                total_loss += loss.item()
+                total_loss += float(loss.item())
 
                 loader.set_description('E%i' % (epoch + 1))
                 # Description will be displayed on the left
@@ -163,20 +166,24 @@ def main(args):
 
             # after each epoch, sample one batch of images
             with ema_model.average_parameters():
+                # break
                 print("sampling")
                 # images = small_model.sample(args.n_samples, return_whole_process=False)
-                images = small_model.sample(8, return_whole_process=True)
+                images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
                 # timestep_target = (int(0.5 * (args.timesteps - 1)))
+                # input_images = next(iter(loader))[0][:8].to(device)
+                # noise = torch.randn_like(input_images).to(device)
                 # timestep_target = torch.ones(8, dtype=torch.long) * timestep_target
-                # images = small_model.forward_diffusion(next(iter(loader))[0][:8], keep_intermediate=False, target = timestep_target)
-                # images = small_model.forward_diffusion(next(iter(loader))[0][:8].to(device), keep_intermediate=True,target=None)
+                # timestep_target = torch.linspace(0, args.timesteps-1, 8, dtype=torch.long).to(device)
+                # images = small_model.forward_diffusion(input_images, noise, keep_intermediate=False, target = timestep_target)
+                # images = small_model.forward_diffusion(input_images, None, keep_intermediate=True, target=None)
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image
 
                 torchvision.utils.save_image(
                     images,
                     "images/{}/small_model_{}.png".format(args.run_name, epoch),
-                    nrow=8,
+                    nrow=20,
                 )
 
 

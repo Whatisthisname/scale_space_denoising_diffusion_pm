@@ -108,7 +108,7 @@ def main(args):
         else:
             checkpoints.sort(key=lambda x: int(re.findall(r"\d+", x)[-1]))
             latest_checkpoint = checkpoints[-1]
-            small_loaded_epoch = int(re.findall(r"\d+", latest_checkpoint)[-1])
+            small_loaded_epoch = 1 + int(re.findall(r"\d+", latest_checkpoint)[-1])
             print("Loading checkpoint: {}".format(latest_checkpoint))
             small_model.load_state_dict(torch.load(latest_checkpoint, map_location=device))
 
@@ -133,8 +133,11 @@ def main(args):
 
                 images = images.to(device)
                 labels = labels.to(device)
+                # print(labels)
                 # one-hot encode the digits
                 labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
+                # print(labels)
+                # exit()
 
                 optimizer.zero_grad()
                 loss = small_model.train(images, labels)
@@ -169,7 +172,8 @@ def main(args):
                 # break
                 print("sampling")
                 # images = small_model.sample(args.n_samples, return_whole_process=False)
-                images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
+                # images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
+                images = small_model.sample(2, [2,4], return_whole_process=True)
                 # timestep_target = (int(0.5 * (args.timesteps - 1)))
                 # input_images = next(iter(loader))[0][:8].to(device)
                 # noise = torch.randn_like(input_images).to(device)

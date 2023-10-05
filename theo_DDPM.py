@@ -90,10 +90,10 @@ class DDPM(nn.Module):
 
         for t in reversed(range(0, self.timesteps-1)):
             t_step = t * torch.ones(amount, dtype=int).to(self.device)
-            context = torch.zeros((amount, 11)).to(self.device)
+            context = torch.zeros((amount, 1+10)).to(self.device)
             context[:, 0] = t / (self.timesteps-1)
             # context.scatter_(1, tensor_label, value= 1) 
-            context[range(amount), tensor_label] = 1
+            context[range(amount), tensor_label+1] = 1
             image: torch.Tensor = self.reverse_diffusion(image, t_step, context).clone()
             images.append(image)
 

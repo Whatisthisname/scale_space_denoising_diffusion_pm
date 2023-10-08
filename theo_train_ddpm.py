@@ -27,7 +27,7 @@ def parse_args():
         default=36,
     )
     parser.add_argument(
-        "--stages",
+        "--unet_stages",
         type=int,
         help="Amount of up/downsample stages in UNET.",
         default=3,
@@ -52,7 +52,8 @@ def parse_args():
     parser.add_argument("--ckpt", action="store_true", help="load latest checkpoint")
 
     # timesteps argument
-    parser.add_argument("--timesteps", type=int, help="sampling steps of DDPM", default=300)
+    parser.add_argument("--markov_states", type=int, help="sampling steps of DDPM", default=300)
+    parser.add_argument("--noise_power", type=float, help="noise power of DDPM", default=1.5)
 
     args = parser.parse_args()
 
@@ -67,7 +68,7 @@ def main(args):
     print("image size: {}".format(args.img_size))
     
     small_model = DDPM(
-        args.img_size, ctx_sz=1+10, timesteps=args.timesteps, unet_stages=args.stages, noise_schedule_param=1.5)
+        args.img_size, ctx_sz=1+10, markov_states=args.markov_states, unet_stages=args.unet_stages, noise_schedule_param=args.noise_power)
     ema_model = ema.ExponentialMovingAverage(small_model.parameters(), decay=0.95)
 
     optimizer = torch.optim.AdamW(small_model.parameters(), lr=args.lr)
@@ -168,19 +169,33 @@ def main(args):
 
 
             # after each epoch, sample one batch of images
+            # with torch.no_grad():
             with ema_model.average_parameters():
                 # break
                 print("sampling")
-                # images = small_model.sample(args.n_samples, return_whole_process=False)
+                # target_label = torch.randint(0, 10, (args.n_samples,)).tolist()
                 # images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
-                images = small_model.sample(2, [2,4], return_whole_process=True)
-                # timestep_target = (int(0.5 * (args.timesteps - 1)))
-                # input_images = next(iter(loader))[0][:8].to(device)
-                # noise = torch.randn_like(input_images).to(device)
-                # timestep_target = torch.ones(8, dtype=torch.long) * timestep_target
-                # timestep_target = torch.linspace(0, args.timesteps-1, 8, dtype=torch.long).to(device)
-                # images = small_model.forward_diffusion(input_images, noise, keep_intermediate=False, target = timestep_target)
-                # images = small_model.forward_diffusion(input_images, None, keep_intermediate=True, target=None)
+        
+                sample_data = next(iter(test_dataloader))
+                input_images =sample_data[0][:args.n_samples].to(device)
+                input_labels = sample_data[1][:args.n_samples].tolist()
+    
+                forward_images = small_model.forward_diffusion(input_images, None, keep_intermediate=True, target=None)
+                reverse_images = small_model.sample(args.n_samples, input_labels, return_whole_process=True)
+                
+                # print(forward_images.shape)
+                # print(reverse_images.shape)
+
+
+                # # rotate the reverse images by 180 degrees
+                # reverse_images = torch.flip(reverse_images, dims=[2,3])
+
+                # concat the forward and reverse images:
+                images = torch.cat((forward_images, reverse_images), dim=2)
+                # images = forward_images
+
+                
+
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image
 

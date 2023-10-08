@@ -10,14 +10,14 @@ from train_mnist import create_mnist_dataloaders
 
 
 class DDPM(nn.Module):
-    def __init__(self, image_size, ctx_sz=1, timesteps=1000, unet_stages=3, noise_schedule_param=10.0):
+    def __init__(self, image_size, ctx_sz=1, markov_states=1000, unet_stages=3, noise_schedule_param=10.0):
         super().__init__()
-        self.timesteps = timesteps
+        self.markov_states = markov_states
         self.image_size = image_size
         self.model = UNet(unet_stages, ctx_sz)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.register_buffer("betas", _cosine_variance_schedule(timesteps, power=noise_schedule_param))
+        self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param))
         self.register_buffer("alphas", 1.0 - self.betas)
         self.register_buffer("alphas_cumprod", self.alphas.cumprod(dim=-1))
         self.register_buffer("sqrt_alphas_cumprod", self.alphas_cumprod.sqrt())
@@ -28,13 +28,13 @@ class DDPM(nn.Module):
     def train(self, clean_image: torch.Tensor, one_hot_labels: torch.Tensor):
         """Train the model on a batch of clean images, letting the model predict the noise and returning the MSE. Minimize the output directly."""
         noise = torch.randn_like(clean_image)
-        t = torch.randint(0, self.timesteps-1, (clean_image.shape[0],)).to(
+        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(
             clean_image.device
         )
 
         noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False)
 
-        timestep_info = t.unsqueeze(1).float() / (self.timesteps-1)
+        timestep_info = t.unsqueeze(1).float() / (self.markov_states-1)
         context = torch.cat([timestep_info, one_hot_labels], dim=1)
         # print(context.shape)
         # context = timestep_info
@@ -51,7 +51,7 @@ class DDPM(nn.Module):
         if keep_intermediate:
             images = [clean_images]
 
-            for t in range(self.timesteps):
+            for t in range(self.markov_states-1):
                 image_scale = self.sqrt_alphas_cumprod[t]
                 noise_scale = self.sqrt_one_minus_alphas_cumprod[t]
                 noised = image_scale * clean_images + noise_scale * torch.randn_like(
@@ -88,10 +88,10 @@ class DDPM(nn.Module):
         images = []
         images.append(image)
 
-        for t in reversed(range(0, self.timesteps-1)):
+        for t in reversed(range(0, self.markov_states-1)):
             t_step = t * torch.ones(amount, dtype=int).to(self.device)
             context = torch.zeros((amount, 1+10)).to(self.device)
-            context[:, 0] = t / (self.timesteps-1)
+            context[:, 0] = t / (self.markov_states-1)
             # context.scatter_(1, tensor_label, value= 1) 
             context[range(amount), tensor_label+1] = 1
             image: torch.Tensor = self.reverse_diffusion(image, t_step, context).clone()
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     power = 1.5
     img_size = 32
     n_imgs = 20
-    model = DDPM(img_size, timesteps=30, noise_schedule_param = power)
+    model = DDPM(img_size, markov_states=30, noise_schedule_param = power)
 
 
 

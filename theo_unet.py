@@ -48,9 +48,7 @@ class UNet(nn.Module):
         intermediate_encodings.pop() # we don't need to concatenate the last layer as it goes directly to the decoder
 
         intermediate_encodings.reverse() 
-
     
-        
         # decoder
         for i in range(self.stages+1):
             # print("x shape: {}".format(x.shape))
@@ -90,30 +88,25 @@ class EncoderBlock(nn.Module):
         if d_smpl:
             self.pool = nn.MaxPool2d(2, 2)
         self.gelu = nn.GELU()
-        self.batchnorm = nn.BatchNorm2d(out_ch)
+        self.batchnorm1 = nn.BatchNorm2d(out_ch)
+        self.batchnorm2 = nn.BatchNorm2d(out_ch)
 
     def forward(self, x : torch.Tensor, context : torch.Tensor = None) -> torch.Tensor:
         if self.downsample:
             x = self.pool(x)
-        
-        # print("encoder x", x[0,0,0,0])
 
         if self.context_size > 0:
             x = self.FiLM(x, context)
-            # print("encoder FiLM x", x[0,0,0,0])
+
 
         x = self.conv1(x)
-        # print("encoder x", x[0,0,0,0])
-        # print ("encoder conv1 shape: {}".format(x.shape))
         x = self.gelu(x)
+        x = self.batchnorm1(x)
+
         x = self.conv2(x)
-        # print("encoder x", x[0,0,0,0])
-        # print ("encoder conv2 shape: {}".format(x.shape))
         x = self.gelu(x)
-        # print("b4 batchnorm", x[0,0,0,0])
-        x = self.batchnorm(x)
-        # print("after batchnorm x", x[0,0,0,0])
-        # print ("encoder pool shape: {}".format(x.shape))
+        x = self.batchnorm2(x)
+
         return x
 
 class DecoderBlock(nn.Module):
@@ -134,18 +127,19 @@ class DecoderBlock(nn.Module):
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
         self.gelu = nn.GELU()
-        self.batchnorm = nn.BatchNorm2d(out_ch)
+        self.batchnorm1 = nn.BatchNorm2d(out_ch)
+        self.batchnorm2 = nn.BatchNorm2d(out_ch)
 
     def forward(self, x : torch.Tensor, upsample_target : int) -> torch.Tensor:
-        # print ("decoder befupsampled shape: {}".format(x.shape))
-        # print ("decoder upsampled shape: {}".format(x.shape))
+
         x = self.conv1(x)
-        # print ("decoder conv1 shape: {}".format(x.shape))
         x = self.gelu(x)
+        x = self.batchnorm1(x)
+ 
         x = self.conv2(x)
-        # print ("decoder conv2 shape: {}".format(x.shape))
         x = self.gelu(x)
-        x = self.batchnorm(x)
+        x = self.batchnorm2(x)
+
         if self.do_upsample:
             x = nn.functional.interpolate(input = x, size = (upsample_target, upsample_target), mode='bilinear', align_corners=True)
         return x

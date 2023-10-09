@@ -11,7 +11,7 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description="Sampling synthesized MNISTDiffusion dataset")
     parser.add_argument("--run_name", type=str, required=True)
-    parser.add_argument("--dataset_size", type=int, default=1000)
+    parser.add_argument("--size", type=int, default=1000)
 
 
     
@@ -76,12 +76,12 @@ def main(args):
     images = []
     labels = []
     with torch.no_grad():
-        for i in range(args.dataset_size // batch_size):
+        for i in range(args.size // batch_size):
             print(f"Sampling batch {i}")
 
             gen_labels = torch.randint(0, 10, (batch_size,)).to(torch.device("cuda" if torch.cuda.is_available() else "cpu")).tolist()
 
-            samples = model.sample(batch_size, target_label=gen_labels, return_whole_process=False)
+            samples = model.sample(batch_size, target_label=gen_labels, keep_intermediate=False)
             samples = samples.cpu().numpy()
 
             images.append(samples)

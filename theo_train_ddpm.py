@@ -71,9 +71,7 @@ def main(args):
         args.img_size, ctx_sz=1+10, markov_states=args.markov_states, unet_stages=args.unet_stages, noise_schedule_param=args.noise_power)
     ema_model = ema.ExponentialMovingAverage(small_model.parameters(), decay=0.95)
 
-    optimizer = torch.optim.AdamW(small_model.parameters(), lr=args.lr)
-
-    criterion = nn.MSELoss()
+    
 
     train_dataloader, test_dataloader = create_mnist_dataloaders(
         batch_size=args.batch_size, image_size=args.img_size
@@ -93,8 +91,26 @@ def main(args):
         with open("checkpoints/{}/args.txt".format(args.run_name), "w") as f:
             # for each argument, write it to the file, so it can be directly copied to the terminal
             for arg in vars(args):
-
                 f.write("--{} {}\n".format(arg, getattr(args, arg)))
+
+        # show a few forward noisings:
+        data = next(iter(train_dataloader))
+        input_images = data[0][:20]
+
+        noise = torch.randn_like(input_images)
+
+        images = small_model.forward_diffusion(input_images, noise, keep_intermediate=True, target=None)
+
+        # save the images locally
+        # create the images folder if it doesn't exist
+
+        os.makedirs("images/schedules", exist_ok=True)
+
+        torchvision.utils.save_image(
+            images,
+            "checkpoints/{}/forward.png".format(args.run_name),
+            nrow=20,
+        )
 
 
     small_loaded_epoch = 0
@@ -118,6 +134,8 @@ def main(args):
         from_scratch()
         
 
+    optimizer = torch.optim.Adam(small_model.parameters(), lr=args.lr)
+
     # create run folder:
     os.makedirs("images/{}".format(args.run_name), exist_ok=True)
     os.makedirs("checkpoints/{}".format(args.run_name), exist_ok=True)
@@ -134,11 +152,7 @@ def main(args):
 
                 images = images.to(device)
                 labels = labels.to(device)
-                # print(labels)
-                # one-hot encode the digits
-                labels = torch.nn.functional.one_hot(labels, num_classes=10).float()
-                # print(labels)
-                # exit()
+                # labels *= 0 #! remove labels
 
                 optimizer.zero_grad()
                 loss = small_model.train(images, labels)
@@ -169,8 +183,8 @@ def main(args):
 
 
             # after each epoch, sample one batch of images
-            # with torch.no_grad():
-            with ema_model.average_parameters():
+            with torch.no_grad():
+            # with ema_model.average_parameters():
                 # break
                 print("sampling")
                 # target_label = torch.randint(0, 10, (args.n_samples,)).tolist()
@@ -178,31 +192,62 @@ def main(args):
         
                 sample_data = next(iter(test_dataloader))
                 input_images =sample_data[0][:args.n_samples].to(device)
-                input_labels = sample_data[1][:args.n_samples].tolist()
+                input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()) # * 0 # remove labels
     
-                forward_images = small_model.forward_diffusion(input_images, None, keep_intermediate=True, target=None)
-                reverse_images = small_model.sample(args.n_samples, input_labels, return_whole_process=True)
-                
+                if True: # show each insta-prediction besides the normal reverse process
+                    # forward_images = small_model.forward_diffusion(input_images, None, keep_intermediate=True, target=None)
+                    reverse_images = small_model.sample(args.n_samples, input_labels[:args.n_samples], keep_intermediate=True)
+
+                    # reverse images is a (n_sample, markov_states, 1, img_size, img_size) tensor.
+
+                    t = torch.Tensor([i for i in reversed(range(args.markov_states))]).to(device).long()
+                    input_labels = input_labels.repeat((args.markov_states)).to(device).long()
+                    t = t.repeat((args.n_samples)).to(device).long()
+
+                    # print("insta sample")
+                    # print(reverse_images.shape)
+                    reverse_flattened = torch.flatten(reverse_images, start_dim=0, end_dim=1)
+                    # print(reverse_flattened.shape)
+                    insta_predictions = small_model.insta_predict_from_t(reverse_flattened, t, input_labels)
+                    # print(insta_predictions.shape)
+
+
+                    # join the images together along horizontal axis
+                    joined = torch.cat((reverse_flattened, insta_predictions), dim=3)
+                    # print(joined.shape)
+
+                    # now join the images together along the vertical axis
+                    joined = torch.unbind(joined, dim=0)
+                    joined = torch.cat((joined), dim=1)
+                    # print(joined.shape)
+
+                    joined = torch.chunk(joined, args.n_samples, dim=1)
+                    # print(joined[0].shape)
+                    joined = torch.stack(joined, dim=0)
+
+
+
+                    images = joined
+
+                # images = insta_predictions
+
                 # print(forward_images.shape)
                 # print(reverse_images.shape)
 
-
-                # # rotate the reverse images by 180 degrees
+                # rotate the reverse images by 180 degrees
                 # reverse_images = torch.flip(reverse_images, dims=[2,3])
 
                 # concat the forward and reverse images:
-                images = torch.cat((forward_images, reverse_images), dim=2)
-                # images = forward_images
-
-                
-
+                # images = torch.cat((forward_images, reverse_images), dim=3)
+                # images = torch.cat((forward_images, reverse_images), dim=2)
+                #                 # images = forward_images
                 # save the images to the run_name path
                 # stack the images and the predictions together and save them in one image
 
                 torchvision.utils.save_image(
                     images,
                     "images/{}/small_model_{}.png".format(args.run_name, epoch),
-                    nrow=20,
+                    nrow=args.n_samples,
                 )
 
 

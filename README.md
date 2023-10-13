@@ -1,4 +1,4 @@
-# MNIST Diffusion for Advanced Topics in Image Analysis at UCPH
+# Generative MNIST for Advanced Topics in Image Analysis at UCPH
 
 
 ```bash

@@ -1,16 +1,37 @@
 import torch
+from torchvision.datasets import MNIST
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
 
-#torchvision ema implementation
-#https://github.com/pytorch/vision/blob/main/references/classification/utils.py#L159
-class ExponentialMovingAverage(torch.optim.swa_utils.AveragedModel):
-    """Maintains moving averages of model parameters using an exponential decay.
-    ``ema_avg = decay * avg_model_param + (1 - decay) * model_param``
-    `torch.optim.swa_utils.AveragedModel <https://pytorch.org/docs/stable/optim.html#custom-averaging-strategies>`_
-    is used to compute the EMA.
-    """
 
-    def __init__(self, model, decay, device="cpu"):
-        def ema_avg(avg_model_param, model_param, num_averaged):
-            return decay * avg_model_param + (1 - decay) * model_param
 
-        super().__init__(model, device, ema_avg, use_buffers=True)
+
+def create_mnist_dataloaders(batch_size,image_size=28,num_workers=0):
+    
+    def map(x):
+        newRange =(-3, 3)
+        width = newRange[1] - newRange[0]
+        return width*x-width/2.0
+
+    preprocess=transforms.Compose([transforms.Resize(image_size),\
+                                    transforms.ToTensor(),
+                                    # rescale the images from [0, 1] to [-1, 1] range with a linear transformation
+                                    transforms.Normalize((0.0), (1.0))])
+                                    # transforms.Lambda(map)])
+
+    train_dataset=MNIST(root="./mnist_data",\
+                        train=True,\
+                        download=True,\
+                        transform=preprocess
+                        )
+
+    test_dataset=MNIST(root="./mnist_data",\
+                train=False,\
+                download=True,\
+                transform=preprocess
+                )
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+
+    return train_loader, test_loader

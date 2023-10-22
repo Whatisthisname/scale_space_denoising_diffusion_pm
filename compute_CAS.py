@@ -14,9 +14,9 @@ import argparse
 import torch_ema as ema
 import tqdm
 
-from theo_DDPM import DDPM
-from theo_mnist_classifier import MNISTCLF
-from train_mnist import create_mnist_dataloaders
+from models.DDPM import DDPM
+from CAS_mnist_classifier import MNISTCLF
+from utils import create_mnist_dataloaders
 
 import more_itertools as mit
 import itertools as it

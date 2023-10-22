@@ -4,8 +4,9 @@ from torchvision.datasets import MNIST
 import torchvision
 import argparse
 import torch_ema as ema
-
-from models.theo_DDPM import DDPM
+import sys
+sys.path.insert(0, '../models/')
+from models.DDPM import DDPM
 import tqdm
 
 from utils import create_mnist_dataloaders
@@ -158,7 +159,6 @@ def main(args):
 
                 images = images.to(device)
                 labels = labels.to(device)
-                # labels *= 0 #! remove labels
 
                 optimizer.zero_grad()
                 loss = small_model.train(images, labels)

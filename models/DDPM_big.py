@@ -1,24 +1,24 @@
 import math
 import os
 
-from theo_unet import UNet
+from models.UNET_big import UNet_Big
 
 import torch
 import torchvision
 import torch.nn as nn
 
 from utils import create_mnist_dataloaders
-from theo_DDPM import DDPM
+from models.DDPM import DDPM
 
 
 class DDPM_upscaler(nn.Module):
-    def __init__(self, inner_model : DDPM, image_size, ctx_sz=1, markov_states=1000, unet_stages=3, noise_schedule_param=10.0):
+    def __init__(self, image_size, ctx_sz=1, markov_states=1000, unet_stages=3, noise_schedule_param=2.0):
         super().__init__()
         self.markov_states = markov_states
         self.image_size = image_size
-        self.model = UNet(unet_stages, ctx_sz)
+        self.model = UNet_Big(unet_stages, ctx_sz)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.inner_model = inner_model
+
 
         self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param))
         self.register_buffer("alphas", 1.0 - self.betas)
@@ -31,6 +31,10 @@ class DDPM_upscaler(nn.Module):
     def train(self, clean_image: torch.Tensor, labels: torch.Tensor):
         """Train the model on a batch of clean images, taking in the sammelr the model predict the noise and returning the MSE. Minimize the output directly."""
         noise = torch.randn_like(clean_image)
+        
+        downsampled_images = torch.nn.functional.interpolate(clean_image, size=(self.image_size//2, self.image_size//2), mode="bilinear", align_corners=True)
+        blurry_clean = torch.nn.functional.interpolate(downsampled_images, size=(self.image_size, self.image_size), mode="bilinear", align_corners=True)
+        
         t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(
             clean_image.device
         )
@@ -39,7 +43,10 @@ class DDPM_upscaler(nn.Module):
 
         context = self.make_context(clean_image.shape[0], t, labels)
 
-        pred_noise = self.model(noisy, context)
+        # give the model the noisy image with blurry truth behind
+        stacked = torch.cat([noisy, blurry_clean], dim=1)
+
+        pred_noise = self.model(stacked, context)
 
         return torch.mean((pred_noise - noise) ** 2)
 

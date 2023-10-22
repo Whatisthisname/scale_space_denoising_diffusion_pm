@@ -1,6 +1,6 @@
 import math
 import os
-from models.theo_unet import UNet
+from models.UNET import UNet
 
 import torch
 import torchvision

@@ -5,12 +5,12 @@ import torch.optim as optim
 import torch.utils.data as data
 
 # define our U-net model
-class UNet_upscaling(nn.Module):
+class UNet_Big(nn.Module):
     # images have 1 channel (grayscale).
 
-    def __init__(self, stages : int, ctx_sz : int = 11, output_scaling : int = 2):
+    def __init__(self, stages : int, ctx_sz : int = 11):
         """`stages` defines the number of downsampling and upsampling stages. 0 stages means no downsampling or upsampling."""
-        super(UNet_upscaling, self).__init__()
+        super(UNet_Big, self).__init__()
         self.stages = stages
         
         c_mult = 16
@@ -19,56 +19,60 @@ class UNet_upscaling(nn.Module):
         self.encoders = nn.ModuleList()
         self.decoders = nn.ModuleList()
 
-        self.encoders.append(EncoderBlock(1, c_mult, ctx_sz, False))
+        self.encoders.append(EncoderBlock(2, c_mult, ctx_sz, False))
         self.encoders.extend([EncoderBlock(c_mult * (2 ** (i)), c_mult * (2 ** (i+1)), ctx_sz) for i in range(stages)])
         
         
         if stages == 0:
             self.decoders.append(DecoderBlock(c_mult,  c_mult, ctx_sz, False))
         else:
-            self.decoders.append(DecoderBlock(c_mult * 2 **(stages),  c_mult * 2 **(stages-1), ctx_sz, True))
+            self.decoders.append(DecoderBlock(c_mult * 2 **(stages),  c_mult * 2 **(stages-1), ctx_sz))
             self.decoders.extend([DecoderBlock(2 * c_mult * (2 ** (i)), c_mult * (2 ** (i-1)), ctx_sz) for i in range(stages-1, 0, -1)])
-            self.decoders.append(DecoderBlock(2*c_mult,  c_mult, ctx_sz, True))
+            self.decoders.append(DecoderBlock(2*c_mult,  c_mult, ctx_sz, up_smpl = False, kernel_size=5))
         
         self.final_conv = nn.Conv2d(c_mult, 1, kernel_size=3, padding=1)
 
-    def forward(self, x : torch.Tensor, context : torch.Tensor = None) -> torch.Tensor:
+    def forward(self, x_and_upscaled_noise : torch.Tensor, context : torch.Tensor = None) -> torch.Tensor:
         # define the forward pass using skip connections
         
-        # print("unet input:", x[0,0,0,0])
+        # print("unet input:", x_and_upscaled_noise.shape)
 
         # encoder
         intermediate_encodings = []
+        target_sizes = []
         for i in range(self.stages+1):
-            # print("unet x", i, x[0,0,0,0])
-            # print("x shape: {}".format(x.shape))
-            x = self.encoders[i](x, context)
-            intermediate_encodings.append(x)
-            # print ("after encoder", i, x.shape)
+            # print("x shape: ", x_and_upscaled_noise.shape)
+            x_and_upscaled_noise = self.encoders[i](x_and_upscaled_noise, context)
+            intermediate_encodings.append(x_and_upscaled_noise)
+            target_sizes.append(x_and_upscaled_noise.shape[-1])
+            # print ("after encoder", i, x_and_upscaled_noise.shape)
         intermediate_encodings.pop() # we don't need to concatenate the last layer as it goes directly to the decoder
+        target_sizes.pop()
 
         intermediate_encodings.reverse() 
+        target_sizes.reverse()
+        target_sizes += [None]
+        # print()
+        # print("intermediate shapes:", [x.shape[-1] for x in intermediate_encodings])
+        # print("target sizes:", target_sizes)
+        # print()
     
         # decoder
         for i in range(self.stages+1):
-            # print("x shape: {}".format(x.shape))
             if i > 0:
                 # concatenate the previous conv in the encoding stage to feed to the decoding (skip connection)
-                x = torch.cat((x, intermediate_encodings[i-1]), dim=1)
+                x_and_upscaled_noise = torch.cat((x_and_upscaled_noise, intermediate_encodings[i-1]), dim=1)
             
+            # print("before decoder:", x_and_upscaled_noise.shape)
             # determine upsample target size by inspecting shape of corresponding encoding layer
-            if i < self.stages:
-                upsample_target = intermediate_encodings[i].shape[-1]
-            else:
-                upsample_target = None # last layer won't be upsampled
+            upsample_target = target_sizes[i]
 
-            x = self.decoders[i](x, upsample_target)
-            # print("unet x", i, x[0,0,0,0])
+            x_and_upscaled_noise = self.decoders[i](x_and_upscaled_noise, upsample_target)
+            # print("after decoder", i, "x:", x_and_upscaled_noise.shape)
 
-        x = self.final_conv(x)
+        x_and_upscaled_noise = self.final_conv(x_and_upscaled_noise)
 
-        # exit()
-        return x
+        return x_and_upscaled_noise
 
 class EncoderBlock(nn.Module):
     # takes input size and output size
@@ -78,6 +82,8 @@ class EncoderBlock(nn.Module):
         out_ch = int(out_ch)
         self.downsample = d_smpl
         self.context_size = ctx_sz
+
+        # print ("EncoderBlock: in_channels: {}, out_channels: {}".format(in_ch, out_ch))
 
         # define the layers of the encoder block
         if ctx_sz > 0:
@@ -111,21 +117,21 @@ class EncoderBlock(nn.Module):
 
 class DecoderBlock(nn.Module):
     # takes input size and output size
-    def __init__(self, in_ch : int, out_ch : int, ctx_sz : int, up_smpl : bool = True):
+    def __init__(self, in_ch : int, out_ch : int, ctx_sz : int, up_smpl : bool = True, kernel_size: int = 3):
         super(DecoderBlock, self).__init__()
         in_ch = int(in_ch)
         out_ch = int(out_ch)
         
         # log input params:
-        # print ("DecoderBlock: in_channels: {}, out_channels: {}".format(in_channels, out_channels), end = " ")
+        # print ("DecoderBlock: in_channels: {}, out_channels: {}, upscale: {}".format(in_ch, out_ch, up_smpl))
         # print ("upsample at end: {}".format(upsample))
 
         # define the layers of the decoder block
         
         self.do_upsample = up_smpl
         
-        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, padding="same")
+        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=kernel_size, padding="same")
         self.gelu = nn.GELU()
         self.batchnorm1 = nn.BatchNorm2d(out_ch)
         self.batchnorm2 = nn.BatchNorm2d(out_ch)

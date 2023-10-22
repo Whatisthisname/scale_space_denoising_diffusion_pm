@@ -1,11 +1,14 @@
+# this file trains a unet to invert the colors of an mnist image. Pretty simple, but it's just to verify that the UNET can learn.
+
+
 import torch
 import torch.nn as nn
 from torchvision.datasets import MNIST
 import torchvision
 import argparse
 
-from theo_unet import UNet
-from train_mnist import create_mnist_dataloaders
+from models.UNET import UNet
+from utils import create_mnist_dataloaders
 import tqdm
 
 import glob
@@ -17,7 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Training MNISTDiffusion")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument(
         "--n_samples",
         type=int,
@@ -37,7 +40,7 @@ def parse_args():
         default=1,
     )
     parser.add_argument(
-        "--cpu", action="store_true", help="cpu training", default=False
+        "--cpu", action="store_true", help="cpu training", default=True
     )
     parser.add_argument("--run_name", type=str, help="define run name", required=True)
     parser.add_argument("--img_size", type=int, help="size of image", default="28")
@@ -64,8 +67,6 @@ def main(args):
     )
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
-
-    criterion = nn.MSELoss()
 
     train_dataloader, test_dataloader = create_mnist_dataloaders(
         batch_size=args.batch_size, image_size=args.img_size
@@ -107,24 +108,34 @@ def main(args):
     os.makedirs("checkpoints/{}".format(args.run_name), exist_ok=True)
 
     for epoch in range(loaded_epoch, loaded_epoch + args.epochs):
-        for i, (images, labels) in enumerate(tqdm.tqdm(train_dataloader)):
-            if i > args.early_stop:
-                break
+        
+        with tqdm.tqdm(train_dataloader) as loader:
 
-            labels = labels.to(device).unsqueeze_(1).float()
+            total_loss = 0
 
-            images = images.to(device)
+            for i, (images, labels) in enumerate(loader):
+                if i > args.early_stop:
+                    break
 
-            optimizer.zero_grad()
-            prediction = model(images, labels)
-            loss = criterion(prediction, -images)
-            loss.backward()
-            optimizer.step()
+                labels = labels.to(device).unsqueeze_(1).float()
+                images = images.to(device)
 
-            if i % args.log_freq == 0:
-                print(
-                    "Epoch: {}, Iteration: {}, Loss: {}".format(epoch, i, loss.item())
-                )
+                optimizer.zero_grad()
+                prediction = model(images, labels)
+                loss = ((prediction+images)**2).mean()
+                loss.backward()
+                optimizer.step()
+
+                total_loss += float(loss.item())
+
+                loader.set_description('E%i' % (epoch + 1))
+                # Description will be displayed on the left
+            
+                # Postfix will be displayed on the right,
+                # formatted automatically based on argument's datatype
+                loader.set_postfix(avg_loss=total_loss / (i + 1))
+
+    
 
         # after epoch, save model checkpoint:
         torch.save(
@@ -137,7 +148,7 @@ def main(args):
             (images, labels) = next(iter(test_dataloader))
             labels = labels.to(device).unsqueeze_(1).float()
             images = images.to(device)
-            prediction = model(images, labels)
+            prediction = model(images, labels) * (-1)
             # save the images to the run_name path
             # stack the images and the predictions together and save them in one image
 

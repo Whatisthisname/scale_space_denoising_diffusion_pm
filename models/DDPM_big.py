@@ -92,7 +92,7 @@ class DDPM_big(nn.Module):
 
         for t in reversed(range(0, self.markov_states-1)):
             t_step = t * torch.ones(amount, dtype=int).to(self.device)
-            task_context = self.make_task_context(amount, t_step, target_label).to(self.device).to
+            task_context = self.make_task_context(amount, t_step, target_label).to(self.device)
             model_input = torch.cat([images[-1], condition_images], dim=1)
             # print("model input size:", model_input.shape)
             image: torch.Tensor = self.reverse_diffusion(model_input, t_step, task_context)

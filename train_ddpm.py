@@ -211,7 +211,7 @@ def main(args):
                         im = plt.imshow(frames[i].squeeze(), vmin=min, vmax=max)
                         ims.append([im])
                     for i in range(10): # repeat the last frame 10 times
-                        im = plt.imshow(frames[-1].squeeze(), vmin=-1, vmax=1)
+                        im = plt.imshow(frames[-1].squeeze(), vmin=min, vmax=max)
                         ims.append([im])
                     
                     ani = animation.ArtistAnimation(fig, ims, interval=100, blit=True, repeat_delay=100)

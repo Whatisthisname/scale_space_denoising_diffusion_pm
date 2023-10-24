@@ -87,7 +87,7 @@ def main(args):
 
         # show a few forward noisings:
         data = next(iter(train_dataloader))
-        input_images = data[0][:20]
+        input_images = data[0][:20].to(device)
 
         noise = torch.randn_like(input_images).to(device)
 

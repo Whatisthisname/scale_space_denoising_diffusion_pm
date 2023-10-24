@@ -30,9 +30,9 @@ class DDPM(nn.Module):
         noise = torch.randn_like(clean_image).to(self.device)
         t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(self.device)
 
-        noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False)
+        noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False).to(self.device)
 
-        context = self.make_context(clean_image.shape[0], t, labels)
+        context = self.make_context(clean_image.shape[0], t, labels).to(self.device)
 
         pred_noise = self.model(noisy, context)
 
@@ -50,7 +50,7 @@ class DDPM(nn.Module):
             for t in range(self.markov_states-1):
                 image_scale = (1-self.betas[t]).sqrt()
                 noise_scale = self.betas[t].sqrt()
-                print("device of all terms below:", image_scale.device, noise_scale.device, images[-1].device, noise.device)
+                # print("device of all terms below:", image_scale.device, noise_scale.device, images[-1].device, noise.device)
                 noised = image_scale * images[-1] + noise_scale * torch.randn_like(
                     clean_images
                 ).to(self.device)

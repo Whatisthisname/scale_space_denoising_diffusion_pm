@@ -143,11 +143,8 @@ def main(args):
                 if i > args.early_stop:
                     break
 
-
-                print(device)
                 images = images.to(device)
                 labels = labels.to(device)
-                print(images.device)
 
                 optimizer.zero_grad()
                 loss = small_model.train(images, labels)
@@ -185,11 +182,11 @@ def main(args):
                 # target_label = torch.randint(0, 10, (args.n_samples,)).tolist()
                 # images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
                 sample_data = next(iter(test_dataloader))
-                input_images =sample_data[0][:args.n_samples].to(device)
-                input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()) # * 0 # remove labels
+                # input_images =sample_data[0][:args.n_samples].to(device)
+                input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()).to(device) # * 0 # remove labels
                 
                 if True:
-                    reverse_images = small_model.sample(args.n_samples, torch.arange(0, args.n_samples) % 10, keep_intermediate=True)
+                    reverse_images = small_model.sample(args.n_samples, torch.arange(0, args.n_samples).to(device) % 10, keep_intermediate=True)
                     
 
                     min_max = [(x.min().item(), x.max().item()) for x in reverse_images.unbind(dim=1)]

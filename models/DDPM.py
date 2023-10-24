@@ -17,12 +17,12 @@ class DDPM(nn.Module):
         self.model = UNet(unet_stages, ctx_sz)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param))
-        self.register_buffer("alphas", 1.0 - self.betas)
-        self.register_buffer("alphas_cumprod", self.alphas.cumprod(dim=-1))
-        self.register_buffer("sqrt_alphas_cumprod", self.alphas_cumprod.sqrt())
+        self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param).to(self.device))
+        self.register_buffer("alphas", (1.0 - self.betas).to(self.device))
+        self.register_buffer("alphas_cumprod", self.alphas.cumprod(dim=-1).to(self.device))
+        self.register_buffer("sqrt_alphas_cumprod", self.alphas_cumprod.sqrt().to(self.device))
         self.register_buffer(
-            "sqrt_one_minus_alphas_cumprod", (1.0 - self.alphas_cumprod).sqrt()
+            "sqrt_one_minus_alphas_cumprod", (1.0 - self.alphas_cumprod).sqrt().to(self.device)
         )
 
     def train(self, clean_image: torch.Tensor, labels: torch.Tensor):

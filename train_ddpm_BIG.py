@@ -87,9 +87,9 @@ def main(args):
 
         # show a few forward noisings:
         data = next(iter(train_dataloader))
-        input_images = data[0][:20]
+        input_images = data[0][:20].to(device)
 
-        noise = torch.randn_like(input_images)
+        noise = torch.randn_like(input_images).to(device)
 
         images = model.forward_diffusion(input_images, noise, keep_intermediate=True, target=None)
 
@@ -176,13 +176,13 @@ def main(args):
                 # images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
                 sample_data = next(iter(test_dataloader))
                 input_images =sample_data[0][:args.n_samples].to(device)
-                input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()) # * 0 # remove labels
+                input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()).to(device) # * 0 # remove labels
                 
                 condition_images = torch.nn.functional.interpolate(input_images, size=(args.img_size // 2, args.img_size // 2), mode="bilinear", align_corners=False)
                 condition_images : torch.Tensor = torch.nn.functional.interpolate(condition_images, size=(args.img_size, args.img_size), mode="bilinear", align_corners=False)
 
                 if True:
-                    reverse_images = model.sample(args.n_samples, input_labels, condition_images, keep_intermediate=True)
+                    reverse_images = model.sample(args.n_samples, input_labels, condition_images, keep_intermediate=True).cpu()
                     
 
                     min_max = [(x.min().item(), x.max().item()) for x in reverse_images.unbind(dim=1)]
@@ -230,7 +230,7 @@ def main(args):
                     insta_predictions = model.insta_predict_from_t(reverse_flattened, cond_images, t, labels)
 
                     # join the images together along horizontal axis
-                    joined = torch.cat((reverse_flattened, insta_predictions), dim=3)
+                    joined = torch.cat((reverse_flattened.cpu(), insta_predictions.cpu()), dim=3)
                     
 
                     # now join the images together along the vertical axis

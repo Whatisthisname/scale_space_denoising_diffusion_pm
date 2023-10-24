@@ -6,7 +6,7 @@ make full:
 	pip install -r requirements.txt
 	# train the baseline model
 	python3 train_ddpm.py --run_name "baseline" --img_size 28 --epochs 2  --early_stop 2
-	# train the small mode
+	# train the small model
 	python3 train_ddpm.py --run_name "small" --img_size 14 --epochs 2  --early_stop 2
 	# train the upscaling model
 	python3 train_ddpm_big.py --run_name "big" --img_size 28 --epochs 2 --early_stop 2

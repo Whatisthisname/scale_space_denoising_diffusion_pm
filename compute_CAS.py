@@ -40,7 +40,7 @@ def parse_args():
 def train(clf, images, labels):
     optim = torch.optim.AdamW(clf.parameters(), lr=0.001)
     criterion = torch.nn.CrossEntropyLoss()
-    epo = 2
+    epo = 5
 
     batch_size = 128
     for i in tqdm.tqdm(range(epo), desc="epoch"):
@@ -64,25 +64,27 @@ def train(clf, images, labels):
     print()
     return clf
 
-
 def predict(clf, images):
     with torch.no_grad():
         preds = clf(torch.Tensor(images).reshape(-1, 1, img_size, img_size)).argmax(dim=1).numpy()
     return preds
 
+def get_clf_avg_acc(images, labels, test_images, test_labels):
+    
+    accs = []
+    for _ in range(5):
 
-def plot_classifier_performance(real_clf, test_img, test_label, ax):
-    # create a plot showing classwise accuracy comparison
+        clf = train(MNISTCLF(img_size), images, labels)
+        acc, classwise_acc = get_classifier_performance(clf, test_images, test_labels)
+        accs.append(np.array(classwise_acc))
 
-    real_pred = predict(real_clf, test_img)
-    real_acc = accuracy_score(test_label, real_pred)
+    accs = np.array(accs)
+    return accs.mean(axis=0), accs.std(axis=0)
 
-    print("validation set acc: {}".format(real_acc))
-    classwise_acc1 = []
-    for i in range(10):
-        classwise_acc1.append(
-            accuracy_score(test_label[test_label == i], real_pred[test_label == i])
-        )
+def plot_classifier_performance(mean, sd, ax):
+
+    mean.cpu()
+    sd.cpu()
 
     # using bar plots where each bar is a class
     # bars should be side by side for each class
@@ -93,10 +95,24 @@ def plot_classifier_performance(real_clf, test_img, test_label, ax):
     offset = current_bar_plot * width - 0.5
 
     ax.bar(
-        [i + offset for i in range(10)], classwise_acc1, width=width, label="trained on {}".format(current_dataset)
+        [i + offset for i in range(10)], mean, width=width, label="trained on {}".format(current_dataset)
+    )
+    ax.errorbar(
+        [i + offset for i in range(10)], mean, yerr=sd, fmt="none", capsize=5, color="black"
     )
     
+def get_classifier_performance(real_clf, test_img, test_label):
+    # create a plot showing classwise accuracy comparison
 
+    real_pred = predict(real_clf, test_img)
+    acc = accuracy_score(test_label, real_pred)
+
+    classwise_acc1 = []
+    for i in range(10):
+        classwise_acc1.append(
+            accuracy_score(test_label[test_label == i], real_pred[test_label == i])
+        )
+    return acc, classwise_acc1
 
 def visualize_images_and_labels(images, labels):
     # visualize some images with their labels
@@ -108,10 +124,12 @@ def visualize_images_and_labels(images, labels):
     plt.show()
 
 if __name__ == "__main__":
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     args = parse_args()
 
     img_size = 28
-
 
     #? FIRST, TRAIN A CLASSIC MNIST CLASSIFIER ON THE REAL MNIST DATA AND GET THE VALIDATION-SET ACCURACY
 
@@ -127,21 +145,14 @@ if __name__ == "__main__":
     train_size = 100
     test_size = 1000
 
-    real_train_images = torch.cat([i for (i, l) in it.islice(real_train_data, train_size)], dim=0).unsqueeze(1)
-    real_train_labels = real_train_data.targets[:train_size]
+    real_train_images = torch.cat([i for (i, l) in it.islice(real_train_data, train_size)], dim=0).unsqueeze(1).to(device)
+    real_train_labels = real_train_data.targets[:train_size].to(device)
 
-    print("training classifier on true data:")
-    # train random forest classifier on real MNIST
-    real_clf = train(MNISTCLF(img_size), real_train_images, real_train_labels)
-    real_train_score = accuracy_score(predict(real_clf, real_train_images), real_train_labels)
-    print("train accuracy: {}".format(real_train_score))
-
-    
     validation_data = MNIST(
         root="mnist_data", train=False, download=True, transform=preprocess
     )
-    validation_images = torch.cat([i for (i, l) in it.islice(validation_data, test_size)], dim=0).unsqueeze(1)
-    validation_labels = validation_data.targets[:test_size]
+    validation_images = torch.cat([i for (i, l) in it.islice(validation_data, test_size)], dim=0).unsqueeze(1).to(device)
+    validation_labels = validation_data.targets[:test_size].to(device)
 
 
     ax = plt.subplot(1, 1, 1)
@@ -155,14 +166,15 @@ if __name__ == "__main__":
     current_bar_plot = 0
     current_dataset = "real"
 
-    plot_classifier_performance(real_clf, validation_images, validation_labels, ax)
+
+    mean, sd = get_clf_avg_acc(real_train_images, real_train_labels, validation_images, validation_labels)
+    plot_classifier_performance(mean, sd, ax)
 
     #? THEN, FOR EVERY DDPM-GENERATED DATASET, TRAIN A CLASSIFIER ON THAT DATASET AND GET THE VALIDATION-SET ACCURACY
 
     for run_name in args.run_names:
         current_bar_plot += 1
         current_dataset = run_name
-
 
         print(f"Comparing classifier trained on real MNIST with classifier trained on {run_name}")
         # load synthesized dataset
@@ -174,29 +186,17 @@ if __name__ == "__main__":
             torch.from_numpy(np.load(f"synthesized/{run_name}/labels.npy")).long()
         )
 
-
         fake_train_images = fake_train_data[0].reshape(-1, img_size * img_size)[:train_size]
         fake_train_labels = fake_train_data[1][:train_size]
 
+        mean, sd = get_clf_avg_acc(fake_train_images, fake_train_labels, validation_images, validation_labels)
 
-        # visualize_images_and_labels(real_train_images, real_train_labels)
-        # visualize_images_and_labels(fake_train_imsages, fake_train_labels)
-        # visualize_images_and_labels(test_images, test_labels)
-
-
-        
-    
-        print("training classifier on fake data from {}:".format(run_name))
-        # train random forest classifier on MNIST
-        fake_clf = train(MNISTCLF(img_size), fake_train_images, fake_train_labels)
-        fake_train_score = accuracy_score(predict(fake_clf, fake_train_images), fake_train_labels)
-        print("train accuracy: {}".format(fake_train_score))
-
-        plot_classifier_performance(fake_clf, validation_images, validation_labels, ax)
+        plot_classifier_performance(mean, sd, ax)
     
     print("final plotting")
     ax.legend()
-    plt.show()
+
+    plt.savefig("classifier_comparison.png", dpi=300)
     
     
     

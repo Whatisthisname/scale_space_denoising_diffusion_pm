@@ -68,7 +68,7 @@ def train(clf, images, labels):
 
 def predict(clf, images):
     with torch.no_grad():
-        preds = clf(torch.Tensor(images).reshape(-1, 1, img_size, img_size)).argmax(dim=1).numpy()
+        preds = clf(torch.Tensor(images).reshape(-1, 1, img_size, img_size)).argmax(dim=1).cpu().numpy()
     return preds
 
 def get_clf_avg_acc(images, labels, test_images, test_labels):

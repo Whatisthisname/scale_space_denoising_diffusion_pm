@@ -129,7 +129,7 @@ class DDPM(nn.Module):
     @torch.no_grad()
     def insta_predict_from_t(self, x_t: torch.Tensor, t : torch.Tensor, labels : torch.Tensor) -> torch.Tensor:
         
-        context = self.make_context(x_t.shape[0], t, labels)
+        context = self.make_context(x_t.shape[0], t, labels).to(self.device)
         noise_mean_pred = self.model.forward(x_t, context)
 
         batch_size: int = x_t.shape[0]

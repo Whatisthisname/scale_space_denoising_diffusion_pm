@@ -85,9 +85,6 @@ def get_clf_avg_acc(images, labels, test_images, test_labels):
 
 def plot_classifier_performance(mean, sd, ax):
 
-    mean.cpu()
-    sd.cpu()
-
     # using bar plots where each bar is a class
     # bars should be side by side for each class
     # x-axis: class
@@ -114,7 +111,7 @@ def get_classifier_performance(real_clf, test_img, test_label):
     classwise_acc1 = []
     for i in range(10):
         classwise_acc1.append(
-            accuracy_score(test_label[test_label == i].cpu(), real_pred[test_label == i].cpu())
+            accuracy_score(test_label[test_label == i].cpu(), torch.Tensor(real_pred)[test_label == i].cpu())
         )
     return acc, classwise_acc1
 

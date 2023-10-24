@@ -110,6 +110,7 @@ def get_classifier_performance(real_clf, test_img, test_label):
 
     classwise_acc1 = []
     for i in range(10):
+        i = torch.Tensor(i, device=device).long()
         classwise_acc1.append(
             accuracy_score(test_label[test_label == i].cpu(), torch.Tensor(real_pred)[test_label == i].cpu())
         )

@@ -62,10 +62,10 @@ class DDPM(nn.Module):
         else:
             image_scale = self.sqrt_alphas_cumprod.gather(0, target).reshape(
                 clean_images.shape[0], 1, 1, 1
-            )
+            ).to(self.device)
             noise_scale = self.sqrt_one_minus_alphas_cumprod.gather(0, target).reshape(
                 clean_images.shape[0], 1, 1, 1
-            )
+            ).to(self.device)
             noised = image_scale * clean_images + noise_scale * noise
             # noised = torch.clip(noised, min=-1, max=1)
             return noised

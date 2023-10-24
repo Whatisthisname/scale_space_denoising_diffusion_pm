@@ -186,8 +186,8 @@ if __name__ == "__main__":
             torch.from_numpy(np.load(f"synthesized/{run_name}/labels.npy")).long()
         )
 
-        fake_train_images = fake_train_data[0].reshape(-1, img_size * img_size)[:train_size]
-        fake_train_labels = fake_train_data[1][:train_size]
+        fake_train_images = fake_train_data[0].reshape(-1, img_size * img_size)[:train_size].to(device)
+        fake_train_labels = fake_train_data[1][:train_size].to(device)
 
         mean, sd = get_clf_avg_acc(fake_train_images, fake_train_labels, validation_images, validation_labels)
 

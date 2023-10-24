@@ -89,7 +89,7 @@ class DDPM(nn.Module):
 
         for t in reversed(range(0, self.markov_states-1)):
             t_step = t * torch.ones(amount, dtype=int).to(self.device)
-            context = self.make_context(amount, t_step, target_label)
+            context = self.make_context(amount, t_step, target_label).to(self.device)
             image: torch.Tensor = self.reverse_diffusion(images[-1], t_step, context)
             images.append(image)
 

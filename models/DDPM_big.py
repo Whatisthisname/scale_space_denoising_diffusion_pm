@@ -30,18 +30,16 @@ class DDPM_big(nn.Module):
 
     def train(self, clean_image: torch.Tensor, labels: torch.Tensor):
         """Train the model on a batch of clean images, taking in the sammelr the model predict the noise and returning the MSE. Minimize the output directly."""
-        noise = torch.randn_like(clean_image)
+        noise = torch.randn_like(clean_image).to(self.device)
         
         downsampled_images = torchvision.transforms.Resize(self.image_size//2, antialias=True)(clean_image)
         blurry_clean = torchvision.transforms.Resize(self.image_size, antialias=True)(downsampled_images)
         
-        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(
-            clean_image.device
-        )
+        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(clean_image.device)
 
         noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False)
 
-        context = self.make_task_context(clean_image.shape[0], t, labels)
+        context = self.make_task_context(clean_image.shape[0], t, labels).to(self.device)
 
         # give the model the noisy image with blurry truth behind
         stacked = torch.cat([noisy, blurry_clean], dim=1)

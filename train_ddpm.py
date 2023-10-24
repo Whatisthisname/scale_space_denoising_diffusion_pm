@@ -89,7 +89,7 @@ def main(args):
         data = next(iter(train_dataloader))
         input_images = data[0][:20]
 
-        noise = torch.randn_like(input_images)
+        noise = torch.randn_like(input_images).to(device)
 
         images = small_model.forward_diffusion(input_images, noise, keep_intermediate=True, target=None)
 

@@ -38,6 +38,8 @@ def parse_args():
 # train random forest classifier on MNIST
 
 def train(clf, images, labels):
+    clf.to(device)
+    
     optim = torch.optim.AdamW(clf.parameters(), lr=0.001)
     criterion = torch.nn.CrossEntropyLoss()
     epo = 5

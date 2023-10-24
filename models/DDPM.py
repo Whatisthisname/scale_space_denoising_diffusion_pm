@@ -50,6 +50,7 @@ class DDPM(nn.Module):
             for t in range(self.markov_states-1):
                 image_scale = (1-self.betas[t]).sqrt()
                 noise_scale = self.betas[t].sqrt()
+                print("device of all terms below:", image_scale.device, noise_scale.device, images[-1].device, noise.device)
                 noised = image_scale * images[-1] + noise_scale * torch.randn_like(
                     clean_images
                 ).to(self.device)

@@ -106,8 +106,9 @@ def plot_classifier_performance(mean, sd, ax):
 def get_classifier_performance(real_clf, test_img, test_label):
     # create a plot showing classwise accuracy comparison
 
-    real_pred = predict(real_clf, test_img)
-    acc = accuracy_score(test_label, real_pred)
+    real_pred = predict(real_clf, test_img).cpu()
+
+    acc = accuracy_score(test_label.cpu(), real_pred)
 
     classwise_acc1 = []
     for i in range(10):

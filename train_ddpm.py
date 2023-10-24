@@ -61,7 +61,7 @@ def main(args):
     
     small_model = DDPM(
         args.img_size, ctx_sz=1+10, markov_states=args.markov_states, unet_stages=args.unet_stages, noise_schedule_param=args.noise_power)
-    ema_model = ema.ExponentialMovingAverage(small_model.parameters(), decay=0.95)
+
 
     
 

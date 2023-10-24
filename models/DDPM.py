@@ -28,9 +28,7 @@ class DDPM(nn.Module):
     def train(self, clean_image: torch.Tensor, labels: torch.Tensor):
         """Train the model on a batch of clean images, letting the model predict the noise and returning the MSE. Minimize the output directly."""
         noise = torch.randn_like(clean_image).to(self.device)
-        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(
-            clean_image.device
-        )
+        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(self.device)
 
         noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False)
 
@@ -54,7 +52,7 @@ class DDPM(nn.Module):
                 noise_scale = self.betas[t].sqrt()
                 noised = image_scale * images[-1] + noise_scale * torch.randn_like(
                     clean_images
-                )
+                ).to(self.device)
                 # noised = torch.clip(noised, min=-1, max=1)
                 images.append(noised)
 

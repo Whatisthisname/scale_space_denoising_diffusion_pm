@@ -109,11 +109,12 @@ def get_classifier_performance(real_clf, test_img, test_label):
     real_pred = predict(real_clf, test_img)
 
     acc = accuracy_score(test_label.cpu(), real_pred)
+    
 
     classwise_acc1 = []
     for i in range(10):
         classwise_acc1.append(
-            accuracy_score(test_label[test_label == i], real_pred[test_label == i])
+            accuracy_score(test_label[test_label == i].cpu(), real_pred[test_label == i].cpu())
         )
     return acc, classwise_acc1
 

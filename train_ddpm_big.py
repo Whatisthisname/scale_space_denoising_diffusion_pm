@@ -179,7 +179,7 @@ def main(args):
                 input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()).to(device) # * 0 # remove labels
                 
                 condition_images = torch.nn.functional.interpolate(input_images, size=(args.img_size // 2, args.img_size // 2), mode="bilinear", align_corners=False)
-                condition_images : torch.Tensor = torch.nn.functional.interpolate(condition_images, size=(args.img_size, args.img_size), mode="bilinear", align_corners=False)
+                condition_images : torch.Tensor = torch.nn.functional.interpolate(condition_images, size=(args.img_size, args.img_size), mode="bilinear", align_corners=False).to(device)
 
                 if True:
                     reverse_images = model.sample(args.n_samples, input_labels, condition_images, keep_intermediate=True).cpu()
@@ -223,7 +223,7 @@ def main(args):
 
                     t = torch.Tensor([i for i in reversed(range(args.markov_states))]).to(device).long()
                     labels = labels.repeat((args.markov_states)).to(device).long()
-                    cond_images = condition_images[:amount].repeat_interleave(args.markov_states, dim=0)
+                    cond_images = condition_images[:amount].repeat_interleave(args.markov_states, dim=0).to(device)
                     t = t.repeat((amount)).to(device).long()
 
                     reverse_flattened = torch.flatten(reverse_images, start_dim=0, end_dim=1)

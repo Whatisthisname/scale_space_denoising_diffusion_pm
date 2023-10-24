@@ -143,8 +143,11 @@ def main(args):
                 if i > args.early_stop:
                     break
 
+
+                print(device)
                 images = images.to(device)
                 labels = labels.to(device)
+                print(images.device)
 
                 optimizer.zero_grad()
                 loss = small_model.train(images, labels)

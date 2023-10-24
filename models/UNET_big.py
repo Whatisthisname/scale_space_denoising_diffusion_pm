@@ -32,19 +32,21 @@ class UNet_Big(nn.Module):
         
         self.final_conv = nn.Conv2d(c_mult, 1, kernel_size=3, padding=1)
 
-    def forward(self, x_and_upscaled_noise : torch.Tensor, context : torch.Tensor = None) -> torch.Tensor:
+    def forward(self, x_and_upscaled_image : torch.Tensor, context : torch.Tensor = None) -> torch.Tensor:
         # define the forward pass using skip connections
         
         # print("unet input:", x_and_upscaled_noise.shape)
+
+        x = x_and_upscaled_image
 
         # encoder
         intermediate_encodings = []
         target_sizes = []
         for i in range(self.stages+1):
             # print("x shape: ", x_and_upscaled_noise.shape)
-            x_and_upscaled_noise = self.encoders[i](x_and_upscaled_noise, context)
-            intermediate_encodings.append(x_and_upscaled_noise)
-            target_sizes.append(x_and_upscaled_noise.shape[-1])
+            x = self.encoders[i](x, context)
+            intermediate_encodings.append(x)
+            target_sizes.append(x.shape[-1])
             # print ("after encoder", i, x_and_upscaled_noise.shape)
         intermediate_encodings.pop() # we don't need to concatenate the last layer as it goes directly to the decoder
         target_sizes.pop()
@@ -61,18 +63,18 @@ class UNet_Big(nn.Module):
         for i in range(self.stages+1):
             if i > 0:
                 # concatenate the previous conv in the encoding stage to feed to the decoding (skip connection)
-                x_and_upscaled_noise = torch.cat((x_and_upscaled_noise, intermediate_encodings[i-1]), dim=1)
+                x = torch.cat((x, intermediate_encodings[i-1]), dim=1)
             
             # print("before decoder:", x_and_upscaled_noise.shape)
             # determine upsample target size by inspecting shape of corresponding encoding layer
             upsample_target = target_sizes[i]
 
-            x_and_upscaled_noise = self.decoders[i](x_and_upscaled_noise, upsample_target)
+            x = self.decoders[i](x, upsample_target)
             # print("after decoder", i, "x:", x_and_upscaled_noise.shape)
 
-        x_and_upscaled_noise = self.final_conv(x_and_upscaled_noise)
+        x = self.final_conv(x)
 
-        return x_and_upscaled_noise
+        return x
 
 class EncoderBlock(nn.Module):
     # takes input size and output size

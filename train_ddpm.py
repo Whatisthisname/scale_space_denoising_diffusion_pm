@@ -24,8 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Training MNISTDiffusion")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--small_epochs", type=int, default=10)
-    parser.add_argument("--big_epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument(
         "--n_samples",
         type=int,
@@ -38,21 +37,10 @@ def parse_args():
         help="Amount of up/downsample stages in UNET.",
         default=3,
     )
-    parser.add_argument(
-        "--log_freq",
-        type=int,
-        help="training log message printing frequence",
-        default=5,
-    )
-    parser.add_argument(
-        "--no_clip",
-        action="store_true",
-        help="set to normal sampling method without clip x_0 which could yield unstable samples",
-    )
+
     parser.add_argument("--run_name", type=str, help="define run name", required=True)
     parser.add_argument("--img_size", type=int, help="size of image", default="28")
     parser.add_argument("--early_stop", type=int, help="early stop", default=1000)
-    parser.add_argument("--ema_update_freq", type=int, help="ema update freq", default=1000)
     
     # add flag to toggle loading latest checkpoint automatically
     parser.add_argument("--ckpt", action="store_true", help="load latest checkpoint")
@@ -68,8 +56,7 @@ def parse_args():
 
 def main(args):
 
-    print("Training small model for {} epochs".format(args.small_epochs))
-    print("Training big model for {} epochs".format(args.big_epochs))
+    print("Training small model for {} epochs".format(args.epochs))
     print("Saving images to {}".format(args.run_name))
     print("image size: {}".format(args.img_size))
     
@@ -146,7 +133,7 @@ def main(args):
     os.makedirs("images/{}".format(args.run_name), exist_ok=True)
     os.makedirs("checkpoints/{}".format(args.run_name), exist_ok=True)
 
-    for epoch in range(small_loaded_epoch, small_loaded_epoch + args.small_epochs):
+    for epoch in range(small_loaded_epoch, small_loaded_epoch + args.epochs):
         
         with tqdm.tqdm(train_dataloader) as loader:
                 
@@ -174,8 +161,8 @@ def main(args):
                 # formatted automatically based on argument's datatype
                 loader.set_postfix(avg_loss=total_loss / (i + 1))
 
-                if i % args.ema_update_freq == 0:
-                    ema_model.update()
+                # if i % args.ema_update_freq == 0:
+                #     ema_model.update()
 
 
 

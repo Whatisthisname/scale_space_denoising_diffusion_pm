@@ -10,7 +10,7 @@ from utils import create_mnist_dataloaders
 
 
 class DDPM(nn.Module):
-    def __init__(self, image_size, ctx_sz=1, markov_states=1000, unet_stages=3, noise_schedule_param=10.0):
+    def __init__(self, image_size, ctx_sz=1, markov_states=1000, unet_stages=3, noise_schedule_param=2.0):
         super().__init__()
         self.markov_states = markov_states
         self.image_size = image_size

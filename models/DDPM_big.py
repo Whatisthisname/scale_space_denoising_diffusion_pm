@@ -11,7 +11,7 @@ from utils import create_mnist_dataloaders
 from models.DDPM import DDPM
 
 
-class DDPM_upscaler(nn.Module):
+class DDPM_big(nn.Module):
     def __init__(self, image_size, ctx_sz=1, markov_states=1000, unet_stages=3, noise_schedule_param=2.0):
         super().__init__()
         self.markov_states = markov_states
@@ -32,8 +32,8 @@ class DDPM_upscaler(nn.Module):
         """Train the model on a batch of clean images, taking in the sammelr the model predict the noise and returning the MSE. Minimize the output directly."""
         noise = torch.randn_like(clean_image)
         
-        downsampled_images = torch.nn.functional.interpolate(clean_image, size=(self.image_size//2, self.image_size//2), mode="bilinear", align_corners=True)
-        blurry_clean = torch.nn.functional.interpolate(downsampled_images, size=(self.image_size, self.image_size), mode="bilinear", align_corners=True)
+        downsampled_images = torchvision.transforms.Resize(self.image_size//2, antialias=True)(clean_image)
+        blurry_clean = torchvision.transforms.Resize(self.image_size, antialias=True)(downsampled_images)
         
         t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(
             clean_image.device
@@ -41,7 +41,7 @@ class DDPM_upscaler(nn.Module):
 
         noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False)
 
-        context = self.make_context(clean_image.shape[0], t, labels)
+        context = self.make_task_context(clean_image.shape[0], t, labels)
 
         # give the model the noisy image with blurry truth behind
         stacked = torch.cat([noisy, blurry_clean], dim=1)
@@ -81,7 +81,7 @@ class DDPM_upscaler(nn.Module):
             return image_scale * clean_images + noise_scale * noise
 
     @torch.no_grad()
-    def sample(self, amount: int, target_label : torch.Tensor, keep_intermediate: bool) -> torch.Tensor:
+    def sample(self, amount: int, target_label : torch.Tensor, condition_images : torch.Tensor, keep_intermediate: bool) -> torch.Tensor:
         """Sample from the model."""
         # sample noise from standard normal distribution
         image = (
@@ -90,16 +90,16 @@ class DDPM_upscaler(nn.Module):
             .float()
         )
 
-
-        # print("image:", image[0, 0, :, 8])
-
         images = []
         images.append(image)
 
         for t in reversed(range(0, self.markov_states-1)):
             t_step = t * torch.ones(amount, dtype=int).to(self.device)
-            context = self.make_context(amount, t_step, target_label)
-            image: torch.Tensor = self.reverse_diffusion(images[-1], t_step, context)
+            task_context = self.make_task_context(amount, t_step, target_label)
+            model_input = torch.cat([images[-1], condition_images], dim=1)
+            # print("model input size:", model_input.shape)
+            image: torch.Tensor = self.reverse_diffusion(model_input, t_step, task_context)
+            # print(image.shape)
             images.append(image)
 
         if keep_intermediate:
@@ -111,22 +111,24 @@ class DDPM_upscaler(nn.Module):
             return image
 
     @torch.no_grad()
-    def reverse_diffusion(self, x_t: torch.Tensor, t : torch.Tensor, context: torch.Tensor) -> torch.Tensor:
+    def reverse_diffusion(self, x_and_downscaled_target: torch.Tensor, t : torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         """Reverse the diffusion process by taking a single step backwards"""
         
-        noise_mean_pred = self.model.forward(x_t, context=context)
+        noise_mean_pred = self.model.forward(x_and_downscaled_target, context=context)
 
-        batch_size: int = x_t.shape[0]
+        noised_images = x_and_downscaled_target[:, 0, :, :].unsqueeze(1)
+        
+        batch_size: int = x_and_downscaled_target.shape[0]
         alpha_t = self.alphas.gather(-1, t).reshape(batch_size, 1, 1, 1)
         
         sqrt_one_minus_alpha_cumprod_t = self.sqrt_one_minus_alphas_cumprod.gather(
             -1, t
         ).reshape(batch_size, 1, 1, 1)
 
-        x0_prediction = (1.0 / torch.sqrt(alpha_t)) * (x_t - sqrt_one_minus_alpha_cumprod_t * noise_mean_pred)
+        x0_prediction = (1.0 / torch.sqrt(alpha_t)) * (noised_images - sqrt_one_minus_alpha_cumprod_t * noise_mean_pred)
 
         if t.min() > 0:
-            noise = torch.randn_like(x_t)
+            noise = torch.randn_like(noised_images)
             forward_noised_again = self.forward_diffusion(x0_prediction, noise, t-1, keep_intermediate=False)
             return forward_noised_again
         else:
@@ -153,10 +155,11 @@ class DDPM_upscaler(nn.Module):
         # noise = torch.randn_like(x_t)
         # return mean + std * noise
 
-    def insta_predict_from_t(self, x_t: torch.Tensor, t : torch.Tensor, labels : torch.Tensor) -> torch.Tensor:
+    def insta_predict_from_t(self, x_t: torch.Tensor, cond_images : torch.Tensor, t : torch.Tensor, labels : torch.Tensor) -> torch.Tensor:
         
-        context = self.make_context(x_t.shape[0], t, labels)
-        noise_mean_pred = self.model.forward(x_t, context)
+        context = self.make_task_context(x_t.shape[0], t, labels)
+        model_input = torch.cat([x_t, cond_images], dim=1)
+        noise_mean_pred = self.model.forward(model_input, context)
 
         batch_size: int = x_t.shape[0]
         alpha_t = self.alphas.gather(-1, t).reshape(batch_size, 1, 1, 1)
@@ -168,7 +171,7 @@ class DDPM_upscaler(nn.Module):
         x0_prediction = (1.0 / torch.sqrt(alpha_t)) * (x_t - sqrt_one_minus_alpha_cumprod_t * noise_mean_pred)
         return x0_prediction
     
-    def make_context(self, batch_size, timesteps, labels) -> torch.Tensor:
+    def make_task_context(self, batch_size, timesteps, labels) -> torch.Tensor:
         """Create the context tensor for the given timesteps and labels"""
         # create the context tensor
         # context is a (timesteps, batch_size, 1+10) tensor

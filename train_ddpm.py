@@ -173,7 +173,6 @@ def main(args):
             )
 
 
-
             # after each epoch, sample one batch of images
             with torch.no_grad():
             # with ema_model.average_parameters():
@@ -186,7 +185,7 @@ def main(args):
                 input_labels = torch.Tensor(sample_data[1][:args.n_samples].tolist()).to(device) # * 0 # remove labels
                 
                 if True:
-                    reverse_images = small_model.sample(args.n_samples, torch.arange(0, args.n_samples).to(device) % 10, keep_intermediate=True)
+                    reverse_images = small_model.sample(args.n_samples, torch.arange(0, args.n_samples).to(device) % 10, keep_intermediate=True).cpu()
                     
 
                     min_max = [(x.min().item(), x.max().item()) for x in reverse_images.unbind(dim=1)]
@@ -223,7 +222,7 @@ def main(args):
                 if True: # show each insta-prediction besides the normal reverse process
                     amount = args.n_samples // 4
                     labels = input_labels[:amount].to(device)
-                    reverse_images = small_model.sample(amount, labels, keep_intermediate=True)
+                    reverse_images = small_model.sample(amount, labels, keep_intermediate=True).cpu()
 
                     # reverse images is a (amount, markov_states, 1, img_size, img_size) tensor.
 

@@ -3,3 +3,4 @@ torchvision
 tqdm
 argparse
 more_itertools
+scikit-learn

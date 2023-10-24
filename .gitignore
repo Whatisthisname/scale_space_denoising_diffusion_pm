@@ -3,3 +3,4 @@ images
 .vscode
 mnist_data
 __pycache__
+synthesized

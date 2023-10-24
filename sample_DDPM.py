@@ -83,7 +83,7 @@ def main(args):
 
     with torch.no_grad():
         for i in range(args.size // batch_size):
-            print(f"Sampling batch {i}")
+            print(f"Sampling batch {i+1} / {args.size // batch_size}")
 
             gen_labels = torch.randint(0, 10, (batch_size,)).to(device).tolist()
 

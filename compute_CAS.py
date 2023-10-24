@@ -40,24 +40,26 @@ def parse_args():
 def train(clf, images, labels):
     optim = torch.optim.AdamW(clf.parameters(), lr=0.001)
     criterion = torch.nn.CrossEntropyLoss()
-    epo = 50
+    epo = 2
+
+    batch_size = 128
     for i in tqdm.tqdm(range(epo), desc="epoch"):
         
         epoch_total_loss = 0
-        for (images, labels) in zip(mit.chunked(images, 16), mit.chunked(labels, 16)):
-            images = list ( map (lambda x: torch.Tensor(x).reshape(1, 1, img_size, img_size), images) )
-            labels = torch.Tensor(labels).long()
-            images = torch.concat(images, dim=0)
+        for j, (batched_images, batched_labels) in enumerate(zip(mit.chunked(images, batch_size), mit.chunked(labels, batch_size))):
+            batched_images = list ( map (lambda x: torch.Tensor(x).reshape(1, 1, img_size, img_size), batched_images) )
+            batched_labels = torch.Tensor(batched_labels).long()
+            batched_images = torch.concat(batched_images, dim=0)
 
             optim.zero_grad()
-            preds = clf(images)
+            preds = clf(batched_images)
 
-            loss = criterion(preds, labels)
+            loss = criterion(preds, batched_labels)
             loss.backward()
             optim.step()
             epoch_total_loss += loss.item()
 
-        averaged = epoch_total_loss / (len(labels) // 16)
+        averaged = epoch_total_loss / (j+1e-15)
         print(f"\repoch {i+1:2}/{epo} loss: {averaged:.4f}", end="")
     print()
     return clf
@@ -122,7 +124,7 @@ if __name__ == "__main__":
         root="mnist_data", train=True, download=True, transform=preprocess
     )
 
-    train_size = 10000
+    train_size = 100
     test_size = 1000
 
     real_train_images = torch.cat([i for (i, l) in it.islice(real_train_data, train_size)], dim=0).unsqueeze(1)

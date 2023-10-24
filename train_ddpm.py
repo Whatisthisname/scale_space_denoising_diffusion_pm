@@ -1,3 +1,4 @@
+import matplotlib
 import torch
 import torch.nn as nn
 from torchvision.datasets import MNIST
@@ -56,9 +57,7 @@ def parse_args():
 
 def main(args):
 
-    print("Training small model for {} epochs".format(args.epochs))
     print("Saving images to {}".format(args.run_name))
-    print("image size: {}".format(args.img_size))
     
     small_model = DDPM(
         args.img_size, ctx_sz=1+10, markov_states=args.markov_states, unet_stages=args.unet_stages, noise_schedule_param=args.noise_power)
@@ -179,7 +178,7 @@ def main(args):
             with torch.no_grad():
             # with ema_model.average_parameters():
                 # break
-                print("sampling")
+                # print("sampling")
                 # target_label = torch.randint(0, 10, (args.n_samples,)).tolist()
                 # images = small_model.sample(20, [0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9], return_whole_process=True)
                 sample_data = next(iter(test_dataloader))
@@ -218,7 +217,7 @@ def main(args):
                     
                     ani = animation.ArtistAnimation(fig, ims, interval=100, blit=True, repeat_delay=100)
                     
-                    ani.save("images/{}/model_samples_{}.gif".format(args.run_name, epoch), fps=10)
+                    ani.save("images/{}/model_samples_{}.gif".format(args.run_name, epoch), writer=matplotlib.animation.PillowWriter(fps=10))
 
     
                 if True: # show each insta-prediction besides the normal reverse process

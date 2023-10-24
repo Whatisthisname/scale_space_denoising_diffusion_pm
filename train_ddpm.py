@@ -222,7 +222,7 @@ def main(args):
                 if True: # show each insta-prediction besides the normal reverse process
                     amount = args.n_samples // 4
                     labels = input_labels[:amount].to(device)
-                    reverse_images = small_model.sample(amount, labels, keep_intermediate=True).cpu()
+                    reverse_images = small_model.sample(amount, labels, keep_intermediate=True)
 
                     # reverse images is a (amount, markov_states, 1, img_size, img_size) tensor.
 
@@ -234,7 +234,7 @@ def main(args):
                     insta_predictions = small_model.insta_predict_from_t(reverse_flattened, t, labels)
 
                     # join the images together along horizontal axis
-                    joined = torch.cat((reverse_flattened, insta_predictions), dim=3)
+                    joined = torch.cat((reverse_flattened.cpu(), insta_predictions.cpu()), dim=3)
                     
 
                     # now join the images together along the vertical axis

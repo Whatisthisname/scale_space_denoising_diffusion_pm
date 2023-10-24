@@ -63,10 +63,10 @@ class DDPM(nn.Module):
         else:
             image_scale = self.sqrt_alphas_cumprod.gather(0, target).reshape(
                 clean_images.shape[0], 1, 1, 1
-            ).to(self.device)
+            )
             noise_scale = self.sqrt_one_minus_alphas_cumprod.gather(0, target).reshape(
                 clean_images.shape[0], 1, 1, 1
-            ).to(self.device)
+            )
             noised = image_scale * clean_images + noise_scale * noise
             # noised = torch.clip(noised, min=-1, max=1)
             return noised
@@ -119,7 +119,7 @@ class DDPM(nn.Module):
         # x0_prediction = torch.clip(x0_prediction, min=-1, max=1)
 
         if t.min() > 0:
-            noise = torch.randn_like(x_t)
+            noise = torch.randn_like(x_t).to(self.device)
             forward_noised_again = self.forward_diffusion(x0_prediction, noise, t-1, keep_intermediate=False)
             return forward_noised_again
         else:

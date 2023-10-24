@@ -16,18 +16,17 @@ class DDPM_big(nn.Module):
         super().__init__()
         self.markov_states = markov_states
         self.image_size = image_size
-        self.model = UNet_Big(unet_stages, ctx_sz)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = UNet_Big(unet_stages, ctx_sz).to(self.device)
 
 
-        self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param))
-        self.register_buffer("alphas", 1.0 - self.betas)
-        self.register_buffer("alphas_cumprod", self.alphas.cumprod(dim=-1))
-        self.register_buffer("sqrt_alphas_cumprod", self.alphas_cumprod.sqrt())
+        self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param).to(self.device))
+        self.register_buffer("alphas", (1.0 - self.betas).to(self.device))
+        self.register_buffer("alphas_cumprod", self.alphas.cumprod(dim=-1).to(self.device))
+        self.register_buffer("sqrt_alphas_cumprod", self.alphas_cumprod.sqrt().to(self.device))
         self.register_buffer(
-            "sqrt_one_minus_alphas_cumprod", (1.0 - self.alphas_cumprod).sqrt()
+            "sqrt_one_minus_alphas_cumprod", (1.0 - self.alphas_cumprod).sqrt().to(self.device)
         )
-
     def train(self, clean_image: torch.Tensor, labels: torch.Tensor):
         """Train the model on a batch of clean images, taking in the sammelr the model predict the noise and returning the MSE. Minimize the output directly."""
         noise = torch.randn_like(clean_image).to(self.device)
@@ -35,7 +34,7 @@ class DDPM_big(nn.Module):
         downsampled_images = torchvision.transforms.Resize(self.image_size//2, antialias=True)(clean_image)
         blurry_clean = torchvision.transforms.Resize(self.image_size, antialias=True)(downsampled_images)
         
-        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(clean_image.device)
+        t = torch.randint(0, self.markov_states-1, (clean_image.shape[0],)).to(self.device)
 
         noisy = self.forward_diffusion(clean_image, noise, t, keep_intermediate=False)
 
@@ -63,7 +62,7 @@ class DDPM_big(nn.Module):
                 noise_scale = self.betas[t].sqrt()
                 noised = image_scale * images[-1] + noise_scale * torch.randn_like(
                     clean_images
-                )
+                ).to(self.device)
                 images.append(noised)
 
             # concatenate each step into one image for for each sample
@@ -93,7 +92,7 @@ class DDPM_big(nn.Module):
 
         for t in reversed(range(0, self.markov_states-1)):
             t_step = t * torch.ones(amount, dtype=int).to(self.device)
-            task_context = self.make_task_context(amount, t_step, target_label)
+            task_context = self.make_task_context(amount, t_step, target_label).to(self.device).to
             model_input = torch.cat([images[-1], condition_images], dim=1)
             # print("model input size:", model_input.shape)
             image: torch.Tensor = self.reverse_diffusion(model_input, t_step, task_context)
@@ -126,7 +125,7 @@ class DDPM_big(nn.Module):
         x0_prediction = (1.0 / torch.sqrt(alpha_t)) * (noised_images - sqrt_one_minus_alpha_cumprod_t * noise_mean_pred)
 
         if t.min() > 0:
-            noise = torch.randn_like(noised_images)
+            noise = torch.randn_like(noised_images).to(self.device)
             forward_noised_again = self.forward_diffusion(x0_prediction, noise, t-1, keep_intermediate=False)
             return forward_noised_again
         else:
@@ -155,7 +154,7 @@ class DDPM_big(nn.Module):
 
     def insta_predict_from_t(self, x_t: torch.Tensor, cond_images : torch.Tensor, t : torch.Tensor, labels : torch.Tensor) -> torch.Tensor:
         
-        context = self.make_task_context(x_t.shape[0], t, labels)
+        context = self.make_task_context(x_t.shape[0], t, labels).to(self.device)
         model_input = torch.cat([x_t, cond_images], dim=1)
         noise_mean_pred = self.model.forward(model_input, context)
 

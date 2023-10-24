@@ -50,8 +50,8 @@ def train(clf, images, labels):
         epoch_total_loss = 0
         for j, (batched_images, batched_labels) in enumerate(zip(mit.chunked(images, batch_size), mit.chunked(labels, batch_size))):
             batched_images = list ( map (lambda x: torch.Tensor(x).reshape(1, 1, img_size, img_size), batched_images) )
-            batched_labels = torch.Tensor(batched_labels).long()
-            batched_images = torch.concat(batched_images, dim=0)
+            batched_labels = torch.Tensor(batched_labels).long().to(device)
+            batched_images = torch.concat(batched_images, dim=0).to(device)
 
             optim.zero_grad()
             preds = clf(batched_images)

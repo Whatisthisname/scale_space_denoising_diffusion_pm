@@ -14,8 +14,8 @@ class DDPM(nn.Module):
         super().__init__()
         self.markov_states = markov_states
         self.image_size = image_size
-        self.model = UNet(unet_stages, ctx_sz)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = UNet(unet_stages, ctx_sz).to(self.device)
 
         self.register_buffer("betas", _cosine_variance_schedule(markov_states, power=noise_schedule_param).to(self.device))
         self.register_buffer("alphas", (1.0 - self.betas).to(self.device))

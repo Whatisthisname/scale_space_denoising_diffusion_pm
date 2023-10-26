@@ -158,9 +158,6 @@ def main(args):
                 # formatted automatically based on argument's datatype
                 loader.set_postfix(avg_loss=total_loss / (i + 1))
 
-                # if i % args.ema_update_freq == 0:
-                #     ema_model.update()
-
 
 
 

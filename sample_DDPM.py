@@ -15,6 +15,8 @@ def parse_args():
     parser.add_argument("--size", type=int, default=1000)
     parser.add_argument("--rescale", type=int, default=0)
     parser.add_argument("-o", "--output", type=str, default="_")
+    parser.add_argument("--stack_samples", action="store_true", default=False)
+    parser.add_argument("--compute_speed", action="store_true", default=False)
 
 
     
@@ -75,7 +77,7 @@ def main(args):
     # create output directory:
     os.makedirs("synthesized/{}".format(fname), exist_ok=True)
 
-    batch_size = 100
+    batch_size = 64
 
     images = []
     labels = []
@@ -83,7 +85,7 @@ def main(args):
 
     with torch.no_grad():
         for i in range(args.size // batch_size):
-            print(f"Sampling batch {i+1} / {args.size // batch_size}")
+            # print(f"Sampling batch {i+1} / {args.size // batch_size}")
 
             gen_labels = torch.randint(0, 10, (batch_size,)).to(device).tolist()
 
@@ -100,24 +102,34 @@ def main(args):
     images = np.concatenate(images, axis=0)
     labels = np.concatenate(labels, axis=0)
 
+    if args.stack_samples:
+        prev_images, prev_labels = (
+                torch.from_numpy(np.load(f"synthesized/{fname}/images.npy"))
+                .reshape(-1, 1, args.img_size, args.img_size)
+                .float(), 
+                torch.from_numpy(np.load(f"synthesized/{fname}/labels.npy")).long()
+            )
+        
+        images = np.concatenate([prev_images, images], axis=0)
+        labels = np.concatenate([prev_labels, labels], axis=0)
+
     np.save(f"synthesized/{fname}/images.npy", images)
     np.save(f"synthesized/{fname}/labels.npy", labels)
 
+    if args.compute_speed:
 
-    n = 100
+        n = 100
 
-    print("sampling 100 images to see how fast it goes:")
-    import time
+        print("sampling 100 images to see how fast it goes:")
+        import time
 
-    start = time.time()
-    for i in range(n//2):
-        gen_labels = torch.randint(0, 10, (2,)).tolist()
-        samples = model.sample(2, target_label=gen_labels, keep_intermediate=False)
+        start = time.time()
+        for i in range(n//2):
+            gen_labels = torch.randint(0, 10, (2,)).tolist()
+            samples = model.sample(2, target_label=gen_labels, keep_intermediate=False)
 
-    end = time.time()
-    print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")
-
-
+        end = time.time()
+        print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")
 
 
 

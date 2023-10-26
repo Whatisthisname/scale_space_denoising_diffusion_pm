@@ -21,7 +21,9 @@ def parse_args():
 
     parser.add_argument("--small_name", type=str, help="define run name", required=True)
     parser.add_argument("--big_name", type=str, help="define run name", required=True)
-    
+    parser.add_argument("--stack_samples", action="store_true", default=False)
+    parser.add_argument("--compute_speed", action="store_true", default=False)
+
     args = parser.parse_args()
 
     parse_add_txt(args.small_name, args)
@@ -100,7 +102,7 @@ def main(args):
     labels = []
 
     for i in range(args.size // batch_size):
-        print(f"Sampling batch {1+i} / {args.size // batch_size}")
+        # print(f"Sampling batch {1+i} / {args.size // batch_size}")
 
         gen_labels = torch.randint(0, 10, (batch_size,)).to(device).tolist()
 
@@ -118,20 +120,21 @@ def main(args):
 
     print("saved cascaded samples to synthesized/{} directory".format(name))
 
+    if args.compute_speed:
 
-    n = 100
-    print(f"sampling {n} images to see how fast it goes:")
-    import time
+        n = 100
+        print(f"sampling {n} images to see how fast it goes:")
+        import time
 
 
-    start = time.time()
-    for i in range(n//2):
-        gen_labels = torch.randint(0, 10, (2,)).tolist()
+        start = time.time()
+        for i in range(n//2):
+            gen_labels = torch.randint(0, 10, (2,)).tolist()
 
-        _small_sample, big_samples = sample(2, small, big, target_label=gen_labels)
+            _small_sample, big_samples = sample(2, small, big, target_label=gen_labels)
 
-    end = time.time()
-    print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")
+        end = time.time()
+        print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")
 
 
 @torch.no_grad()

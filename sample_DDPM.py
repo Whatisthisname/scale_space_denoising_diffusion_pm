@@ -90,6 +90,8 @@ def main(args):
     images = []
     labels = []
 
+    img_size = args.img_size if args.rescale == 0 else args.rescale
+
 
     with torch.no_grad():
         for i in range(args.size // batch_size):
@@ -113,7 +115,7 @@ def main(args):
     if args.stack_samples:
         prev_images, prev_labels = (
                 torch.from_numpy(np.load(f"synthesized/{fname}/images.npy"))
-                .reshape(-1, 1, args.img_size, args.img_size)
+                .reshape(-1, 1, img_size, img_size)
                 .float(), 
                 torch.from_numpy(np.load(f"synthesized/{fname}/labels.npy")).long()
             )

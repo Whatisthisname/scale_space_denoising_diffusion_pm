@@ -86,9 +86,10 @@ def main(args):
     stacked = torch.cat([small_samples_resized, big_samples], dim=2)
 
     name = f"{args.small_name}_to_{args.big_name}"
-    torchvision.utils.save_image(stacked, name+".png", nrow=10, padding=15)
+    torchvision.utils.save_image(stacked, "previews/"+name+str(torch.rand((1,), dtype=torch.float16).item())[:4]+".png", nrow=10, padding=6)
+    torchvision.utils.save_image(small_samples, "previews/"+args.small_name+str(torch.rand((1,), dtype=torch.float16).item())[:4]+".png", nrow=10, padding=6)
+    torchvision.utils.save_image(big_samples, "previews/"+args.big_name+str(torch.rand((1,), dtype=torch.float16).item())[:4]+".png", nrow=10, padding=6)
 
-    print("saved cascaded sample preview to {}".format(name))
 
     # create output directory:
     os.makedirs("synthesized/{}".format(name), exist_ok=True)

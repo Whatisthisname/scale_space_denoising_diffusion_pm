@@ -72,6 +72,11 @@ def main(args):
     # sample from model:
     fname = args.run_name if args.output == "_" else args.output
 
+    samples = model.sample(30, torch.arange(30) % 10, keep_intermediate=False)
+
+
+    torchvision.utils.save_image(samples, "previews/"+fname+str(torch.rand((1,), dtype=torch.float16).item())[:4]+".png", nrow=10, padding=6)
+
     
     # create output directory:
     os.makedirs("synthesized/{}".format(fname), exist_ok=True)

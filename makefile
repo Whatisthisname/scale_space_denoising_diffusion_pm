@@ -7,15 +7,15 @@ make full:
 	#
 	# train the baseline model
 	#
-	python3 train_ddpm.py --run_name "baseline" --img_size 28 --epochs 10 --markov_states 100 --ckpt
+	python3 train_ddpm.py --run_name "baseline" --img_size 28 --epochs 10 --markov_states 30 --ckpt --noise_power 1.5
 	#
 	# train the small model
 	#
-	python3 train_ddpm.py --run_name "small" --img_size 14 --epochs 10 --markov_states 50 --ckpt
+	python3 train_ddpm.py --run_name "small" --img_size 14 --epochs 10 --markov_states 50 --ckpt --noise_power 1.5
 	#
 	# train the upscaling model
 	#
-	python3 train_ddpm_big.py --run_name "big" --img_size 28 --epochs 10 --markov_states 50 --ckpt
+	python3 train_ddpm_big.py --run_name "big" --img_size 28 --epochs 10 --markov_states 50 --ckpt --noise_power 1.5
 	#
 	# sample from the cascaded model for CAS
 	#

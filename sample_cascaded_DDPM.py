@@ -123,11 +123,12 @@ def main(args):
     print(f"sampling {n} images to see how fast it goes:")
     import time
 
-    start = time.time()
-    for i in range(n):
-        gen_labels = torch.randint(0, 10, (1,)).tolist()
 
-        _small_sample, big_samples = sample(1, small, big, target_label=gen_labels)
+    start = time.time()
+    for i in range(n//2):
+        gen_labels = torch.randint(0, 10, (2,)).tolist()
+
+        _small_sample, big_samples = sample(2, small, big, target_label=gen_labels)
 
     end = time.time()
     print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / {n}} seconds per sample")

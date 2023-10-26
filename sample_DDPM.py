@@ -110,8 +110,8 @@ def main(args):
     import time
 
     start = time.time()
-    for i in range(n):
-        gen_labels = torch.randint(0, 10, (1,)).tolist()
+    for i in range(n//2):
+        gen_labels = torch.randint(0, 10, (2,)).tolist()
         samples = model.sample(1, target_label=gen_labels, keep_intermediate=False)
 
     end = time.time()

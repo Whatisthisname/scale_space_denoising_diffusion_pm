@@ -119,7 +119,7 @@ def main(args):
     print("saved cascaded samples to synthesized/{} directory".format(name))
 
 
-    n = 100
+    n = 10000
     print(f"sampling {n} images to see how fast it goes:")
     import time
 

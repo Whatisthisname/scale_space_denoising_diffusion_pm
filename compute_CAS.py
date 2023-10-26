@@ -143,8 +143,8 @@ if __name__ == "__main__":
         root="mnist_data", train=True, download=True, transform=preprocess
     )
 
-    train_size = 100
-    test_size = 1000
+    train_size = 10000
+    test_size = 10000
 
     real_train_images = torch.cat([i for (i, l) in it.islice(real_train_data, train_size)], dim=0).unsqueeze(1).to(device)
     real_train_labels = real_train_data.targets[:train_size].to(device)

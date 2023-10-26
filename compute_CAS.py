@@ -90,6 +90,8 @@ def plot_classifier_performance(mean, sd, ax):
     # x-axis: class
     # y-axis: accuracy
 
+    print(f"classifier {current_dataset} got CAS score: {mean.mean():.4f} +- {sd.mean():.4f}")
+
     width = 1/(n_bars+1)
     offset = current_bar_plot * width - 0.5
 

@@ -104,9 +104,9 @@ def main(args):
     np.save(f"synthesized/{fname}/labels.npy", labels)
 
 
-    n = 10000
+    n = 100
 
-    print("sampling 10000 images to see how fast it goes:")
+    print("sampling 100 images to see how fast it goes:")
     import time
 
     start = time.time()

@@ -90,11 +90,17 @@ def main(args):
 
     print("saved cascaded sample preview to {}".format(name))
 
-
-    # delete files in output directory if it already exists:
-    shutil.rmtree("synthesized/{}".format(name), ignore_errors=True)
     # create output directory:
     os.makedirs("synthesized/{}".format(name), exist_ok=True)
+    if not args.stack_samples:
+        # delete previous samples, but not the folder:
+        try:
+            os.remove("synthesized/{}/{}".format(name, "images.npy"))
+            os.remove("synthesized/{}/{}".format(name, "labels.npy"))
+        except FileNotFoundError as e:
+            pass
+
+
 
     batch_size = 64
 
@@ -114,6 +120,22 @@ def main(args):
         
     images = np.concatenate(images, axis=0)
     labels = np.concatenate(labels, axis=0)
+
+    if args.stack_samples:
+        prev_images, prev_labels = (
+                torch.from_numpy(np.load(f"synthesized/{name}/images.npy"))
+                .reshape(-1, 1, big_img_size, big_img_size)
+                .float(), 
+                torch.from_numpy(np.load(f"synthesized/{name}/labels.npy")).long()
+            )
+        
+        images = np.concatenate([prev_images, images], axis=0)
+        labels = np.concatenate([prev_labels, labels], axis=0)
+
+   
+
+
+
 
     np.save(f"synthesized/{name}/images.npy", images)
     np.save(f"synthesized/{name}/labels.npy", labels)

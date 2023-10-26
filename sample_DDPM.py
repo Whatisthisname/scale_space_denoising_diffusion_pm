@@ -72,10 +72,18 @@ def main(args):
     # sample from model:
     fname = args.run_name if args.output == "_" else args.output
 
-    # delete files in output directory if it already exists:
-    shutil.rmtree("synthesized/{}".format(fname), ignore_errors=True)
+    
     # create output directory:
     os.makedirs("synthesized/{}".format(fname), exist_ok=True)
+    if not args.stack_samples:
+        # delete previous samples, but not the folder:
+        try:
+            os.remove("synthesized/{}/{}".format(fname, "images.npy"))
+            os.remove("synthesized/{}/{}".format(fname, "labels.npy"))
+        except FileNotFoundError as e:
+            pass
+
+
 
     batch_size = 64
 
@@ -113,6 +121,8 @@ def main(args):
         images = np.concatenate([prev_images, images], axis=0)
         labels = np.concatenate([prev_labels, labels], axis=0)
 
+
+
     np.save(f"synthesized/{fname}/images.npy", images)
     np.save(f"synthesized/{fname}/labels.npy", labels)
 
@@ -120,7 +130,7 @@ def main(args):
 
         n = 100
 
-        print("sampling 100 images to see how fast it goes:")
+        print(f"sampling {n} images to see how fast it goes:")
         import time
 
         start = time.time()

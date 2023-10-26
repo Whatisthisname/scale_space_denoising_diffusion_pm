@@ -112,7 +112,7 @@ def main(args):
     start = time.time()
     for i in range(n//2):
         gen_labels = torch.randint(0, 10, (2,)).tolist()
-        samples = model.sample(1, target_label=gen_labels, keep_intermediate=False)
+        samples = model.sample(2, target_label=gen_labels, keep_intermediate=False)
 
     end = time.time()
     print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")

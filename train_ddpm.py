@@ -61,8 +61,6 @@ def main(args):
     
     small_model = DDPM(
         args.img_size, ctx_sz=1+10, markov_states=args.markov_states, unet_stages=args.unet_stages, noise_schedule_param=args.noise_power)
-
-
     
 
     train_dataloader, test_dataloader = create_mnist_dataloaders(

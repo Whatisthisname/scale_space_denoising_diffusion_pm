@@ -150,7 +150,6 @@ class FiLM(nn.Module):
         super(FiLM, self).__init__()
 
         # In a convolutional network, FiLM applies a different affine transformation to each channel, consistent across spatial locations.
-
         # register the parameters of the affine transformation which depend on the context
         # make a network that maps from context to the affine transformation parameters
         
@@ -165,20 +164,15 @@ class FiLM(nn.Module):
     def forward(self, x : torch.Tensor, ctx : torch.Tensor ) -> torch.Tensor:
         
         # get the affine transformation parameters from the context
-        # print ("ctx shape: {}".format(ctx.shape))
-        # print ("x shape: {}".format(x.shape))
 
         params = self.context_embedding1(ctx)
         params = self.gelu(params)
         params = self.context_embedding2(params)
 
         # apply the affine transformation to the input tensor
-        # print ("params shape: {}".format(params.shape))
+
         gamma = params[:, :x.shape[1]]
         beta = params[:, x.shape[1]:]
-
-        # # equivalently, using einops:
-        # gamma, beta = einops.rearrange(params, 'b (g b) -> b g b', g=2)
 
         # apply transformation, channel-wise
         x = gamma.unsqueeze(-1).unsqueeze(-1) * x + beta.unsqueeze(-1).unsqueeze(-1)

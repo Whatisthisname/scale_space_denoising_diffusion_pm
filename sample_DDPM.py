@@ -104,6 +104,22 @@ def main(args):
     np.save(f"synthesized/{fname}/labels.npy", labels)
 
 
+    n = 100
+
+    print("sampling 10000 images to see how fast it goes:")
+    import time
+
+    start = time.time()
+    for i in range(n):
+        gen_labels = torch.randint(0, 10, (1,)).tolist()
+        samples = model.sample(1, target_label=gen_labels, keep_intermediate=False)
+
+    end = time.time()
+    print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")
+
+
+
+
 
 if __name__ == "__main__":
     args = parse_args()

@@ -11,11 +11,11 @@ make full:
 	#
 	# train the small model
 	#
-	python3 train_ddpm.py --run_name "small" --img_size 14 --epochs 10 --markov_states 50 --noise_power 1.5
+	python3 train_ddpm.py --run_name "small" --img_size 14 --epochs 10 --markov_states 20 --noise_power 1.5
 	#
 	# train the upscaling model
 	#
-	python3 train_ddpm_big.py --run_name "big" --img_size 28 --epochs 10 --markov_states 50 --noise_power 1.5
+	python3 train_ddpm_big.py --run_name "big" --img_size 28 --epochs 10 --markov_states 10 --noise_power 1.5
 	#
 	# sample from the cascaded model for CAS
 	#

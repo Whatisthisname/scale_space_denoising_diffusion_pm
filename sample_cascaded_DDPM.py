@@ -131,7 +131,7 @@ def main(args):
         _small_sample, big_samples = sample(2, small, big, target_label=gen_labels)
 
     end = time.time()
-    print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / {n}} seconds per sample")
+    print(f"{n} samples took {end - start} seconds, which is an average of {(end - start) / n} seconds per sample")
 
 
 @torch.no_grad()

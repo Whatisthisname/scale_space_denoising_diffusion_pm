@@ -1,12 +1,1 @@
-# Generative MNIST for Advanced Topics in Image Analysis at UCPH
-
-
-```bash
-git clone https://github.com/Whatisthisname/DDPM-hierarchical.git
-python ./DDPM-hierarchical/theo_train_ddpm.py --run_name "ddpm16" --img_size 16 --early_stop 500 --timesteps 25  --small_epochs 10 --ckpt
-```
-
-```bash
-git clone https://github.com/Whatisthisname/DDPM-hierarchical.git
-python ./theo_train_ddpm.py --run_name "ddpm16" --img_size 16 --early_stop 500 --timesteps 25  --small_epochs 10 --ckpt
-```
+In this project, I experimented with different ways of more efficiently training and sampling from DDPMs by decomposing the usual forward process into two halves with differing resolutions, as the initial stages (probably) do not need the full detailed representation to get going. Results were mixed, mostly because training DDPMs is an art form that requires very steady hands to ensure crisp samples. The associated report is in this repository as well.
